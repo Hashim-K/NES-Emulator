@@ -1,13 +1,21 @@
 use log::LevelFilter;
-use std::error::Error;
+use thiserror::Error;
 use tudelft_nes_ppu::{run_cpu, Cpu, Mirroring, Ppu};
 use tudelft_nes_test::TestableCpu;
 
 pub struct MyCpu {}
 
+#[derive(Debug, Error)]
+pub enum MyTickError {
+    #[error("Unknown Error: {0}")]
+    Unknown(String),
+}
+
 /// See docs of `Cpu` for explanations of each function
 impl Cpu for MyCpu {
-    fn tick(&mut self, _ppu: &mut Ppu) -> Result<(), Box<dyn Error>> {
+    type TickError = MyTickError;
+
+    fn tick(&mut self, _ppu: &mut Ppu) -> Result<(), MyTickError> {
         todo!()
     }
 
@@ -20,11 +28,19 @@ impl Cpu for MyCpu {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum MyGetCpuError {
+    #[error("Unknown Error: {0}")]
+    Unknown(String),
+}
+
 /// Implementing this trait allows automated tests to be run on your cpu.
 /// The crate `tudelft-nes-test` contains all kinds of small and large scale
 /// tests to find bugs in your cpu.
 impl TestableCpu for MyCpu {
-    fn get_cpu(_rom: &[u8]) -> Result<Self, Box<dyn Error>> {
+    type GetCpuError = MyGetCpuError;
+
+    fn get_cpu(_rom: &[u8]) -> Result<Self, MyGetCpuError> {
         todo!()
     }
 
@@ -56,10 +72,7 @@ mod tests {
     #[test]
     fn test_all() {
         env_logger::builder().filter_level(LevelFilter::Info).init();
-
-        if let Err(e) = run_tests::<MyCpu>(TestSelector::DEFAULT) {
-            log::error!("TEST FAILED: {e}");
-            assert!(false);
-        }
+        let result = run_tests::<MyCpu>(TestSelector::DEFAULT);
+        assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
     }
 }
