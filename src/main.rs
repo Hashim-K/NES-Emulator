@@ -1,16 +1,11 @@
 use log::LevelFilter;
-use thiserror::Error;
 use tudelft_nes_ppu::{run_cpu, Cpu, Mirroring, Ppu};
 use tudelft_nes_test::TestableCpu;
+use error::{MyTickError, MyGetCpuError};
+
+mod error;
 
 pub struct MyCpu {}
-
-#[derive(Debug, Error)]
-pub enum MyTickError {
-    /// TODO: change this
-    #[error("Unknown Error: {0}")]
-    Unknown(String),
-}
 
 /// See docs of `Cpu` for explanations of each function
 impl Cpu for MyCpu {
@@ -27,13 +22,6 @@ impl Cpu for MyCpu {
     fn non_maskable_interrupt(&mut self) {
         todo!()
     }
-}
-
-#[derive(Debug, Error)]
-pub enum MyGetCpuError {
-    /// TODO: change this
-    #[error("Unknown Error: {0}")]
-    Unknown(String),
 }
 
 /// Implementing this trait allows automated tests to be run on your cpu.
