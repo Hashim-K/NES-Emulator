@@ -3,6 +3,7 @@ use tudelft_nes_ppu::{run_cpu, Mirroring};
 use cpu::MyCpu;
 
 mod cpu;
+mod cartridge;
 mod error;
 
 fn main() {
