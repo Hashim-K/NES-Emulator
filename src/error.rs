@@ -2,6 +2,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum RomError {
+    #[error("Unknown Address Error: Rom address not in the right range")]
+    UnknownAddress,
     #[error("Header signature does not match specification")]
     IncorrectSignature,
     #[error("Unknown Error: {0}")]

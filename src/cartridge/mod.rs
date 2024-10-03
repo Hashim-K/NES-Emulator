@@ -1,5 +1,7 @@
 use crate::error::RomError;
+use nrom::Nrom;
 
+mod nrom;
 #[cfg(test)]
 use tudelft_nes_test::ROM_NROM_TEST;
 
@@ -14,6 +16,8 @@ pub struct RomHeader {
 }
 
 pub struct Cartrigde {
+    header: RomHeader,
+    data: &'static [u8],
 }
 
 impl Cartrigde {
@@ -37,8 +41,18 @@ impl Cartrigde {
         })    
     }
 
-    fn parse_rom (rom_bytes: &[u8]) {
-        todo!()
+    fn new (rom_bytes: &'static [u8]) -> Result<Cartrigde, RomError> {
+        let header = Self::parse_header(rom_bytes)?;
+        // TODO: implement error handling
+        Ok(Cartrigde { header, data: &rom_bytes[16..]})
+    }
+
+    fn get_memory_byte(self, address: u16) -> Result<u8, RomError> {
+        match address{
+            a if a >= 0x8000 && a <= 0xbfff => Ok(self.data[(a-0x8000) as usize]), // first 16 KiB of rom
+            a if a >= 0xc000 && a <= 0xffff => Ok(self.data[(a-0xc000 + 0x4000) as usize]), // second 16 KiB of rom
+            _ => Err(RomError::UnknownAddress)
+        }
     }
 
 }
