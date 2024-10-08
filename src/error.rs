@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum RomError {
     #[error("Unknown Mapper Error: Mapper {0} is not implemented")]
     UnknownMapper(u8),
@@ -10,6 +10,8 @@ pub enum RomError {
     IncorrectSignature,
     #[error("Unknown Error: {0}")]
     Unknown(String),
+    #[error("Given amount of data does not match header")]
+    IncorrectDataSize,
 }
 
 #[derive(Debug, Error)]
