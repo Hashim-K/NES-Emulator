@@ -1,15 +1,45 @@
-use crate::error::RomError;
+use crate::error::{RomError,MemoryError};
+use tudelft_nes_ppu::PpuRegister;
 
 #[cfg(test)]
 use tudelft_nes_test::ROM_NROM_TEST;
 
+fn address_to_ppu_register(a: u16) -> PpuRegister {
+    let reg_num = (a & 0b111) as u8; // Translate address to register number
+    unsafe { std::mem::transmute(reg_num) } // Translate register number to enum
+}
+
+#[test]
+fn test_address_to_ppu_register() {
+    assert_eq!(address_to_ppu_register(0x2000), PpuRegister::Controller);
+    assert_eq!(address_to_ppu_register(0x2002), PpuRegister::Status);
+    assert_eq!(address_to_ppu_register(0x3456), PpuRegister::Address);
+    assert_eq!(address_to_ppu_register(0x345e), PpuRegister::Address);
+    assert_eq!(address_to_ppu_register(0x3fff), PpuRegister::Data);
+}
+
 pub struct Memory {
+    internal_ram: [u8; 2048],
     cartridge: Cartridge,
 }
 
 impl Memory {
     pub fn new (rom_bytes: &[u8]) -> Result<Memory, RomError> {
-        Ok(Memory { cartridge: Cartridge::new(rom_bytes)? })
+        Ok(Memory { cartridge: Cartridge::new(rom_bytes)?, internal_ram: [0; 2048] })
+    }
+
+    fn get_memory_byte(self, address: u16) -> Result<u8, MemoryError> {
+        match address{
+            a if a <= 0x07ff => Ok(self.internal_ram[a as usize]), // 2 KB internal RAM
+            a if a >= 0x0800 && a <= 0x0fff => Ok(self.internal_ram[(a - 0x0800) as usize]), // Mirrored RAM
+            a if a >= 0x1000 && a <= 0x17ff => Ok(self.internal_ram[(a - 0x1000) as usize]),
+            a if a >= 0x1800 && a <= 0x1fff => Ok(self.internal_ram[(a - 0x1800) as usize]),
+            a if a >= 0x2000 && a <= 0x3fff => { let register = address_to_ppu_register(a); todo!()}, // NES PPU registers
+            a if a >= 0x4000 && a <= 0x4017 => todo!(), // NES APU and I/O registers
+            a if a >= 0x4018 && a <= 0x401f => todo!(), // APU and I/O functionality that is normally disabled
+            a if a >= 0x4020 => Ok(self.cartridge.get_memory_byte(a)?), // APU and I/O functionality that is normally disabled
+            _ => Err(MemoryError::UnknownAddress)
+        }
     }
 }
 
