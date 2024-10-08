@@ -4,7 +4,13 @@ use crate::error::RomError;
 use tudelft_nes_test::ROM_NROM_TEST;
 
 pub struct Memory {
+    cartridge: Cartridge,
+}
 
+impl Memory {
+    pub fn new (rom_bytes: &[u8]) -> Result<Memory, RomError> {
+        Ok(Memory { cartridge: Cartridge::new(rom_bytes)? })
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -44,7 +50,7 @@ impl Cartridge {
         })    
     }
 
-    fn new (rom_bytes: &'static [u8]) -> Result<Cartridge, RomError> {
+    fn new (rom_bytes: &[u8]) -> Result<Cartridge, RomError> {
         let header = Self::parse_header(rom_bytes)?;
 
         match header.mapper_number {

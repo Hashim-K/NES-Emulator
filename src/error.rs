@@ -21,8 +21,15 @@ pub enum MyTickError {
 
 #[derive(Debug, Error)]
 pub enum MyGetCpuError {
-    /// TODO: change this
+    #[error("Rom Error occurred: {0}")]
+    RomError(#[from] RomError),
     #[error("Unknown Error: {0}")]
     Unknown(String),
+}
+
+#[derive(Debug, Error)]
+pub enum MainError {
+    #[error("Get Cpu Error occurred: {0}")]
+    MyGetCpuError(#[from] MyGetCpuError),
 }
 

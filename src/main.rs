@@ -4,13 +4,13 @@ use tudelft_nes_ppu::{run_cpu, Mirroring};
 use tudelft_nes_test::TestableCpu;
 use tudelft_nes_test::ROM_NROM_TEST;
 use cpu::MyCpu;
-use error::MyGetCpuError;
+use error::MainError;
 
 mod cpu;
 mod memory;
 mod error;
 
-fn run() -> Result<(), MyGetCpuError> {
+fn run() -> Result<(), MainError> {
     env_logger::builder().filter_level(LevelFilter::Info).init();
 
     let cpu = MyCpu::get_cpu(ROM_NROM_TEST)?;
