@@ -1,6 +1,14 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
+pub enum RomError {
+    #[error("Header signature does not match specification")]
+    IncorrectSignature,
+    #[error("Unknown Error: {0}")]
+    Unknown(String),
+}
+
+#[derive(Debug, Error)]
 pub enum MyTickError {
     /// TODO: change this
     #[error("Unknown Error: {0}")]

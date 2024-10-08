@@ -1,6 +1,7 @@
 use log::LevelFilter;
 use tudelft_nes_ppu::{run_cpu, Mirroring};
 use cpu::MyCpu;
+use cartridge::Cartrigde;
 
 mod cpu;
 mod cartridge;
