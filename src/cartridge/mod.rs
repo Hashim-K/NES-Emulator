@@ -16,6 +16,7 @@ pub struct RomHeader {
 pub struct Cartridge {
     header: RomHeader,
     data: &'static [u8],
+    pgr_ram: [u8; 8192], // 8 KiB of program ram
 }
 
 impl Cartridge {
@@ -42,11 +43,12 @@ impl Cartridge {
     fn new (rom_bytes: &'static [u8]) -> Result<Cartridge, RomError> {
         let header = Self::parse_header(rom_bytes)?;
         // TODO: implement error handling
-        Ok(Cartridge { header, data: &rom_bytes[16..]})
+        Ok(Cartridge { header, data: &rom_bytes[16..], pgr_ram: [0; 8192]})
     }
 
     fn get_memory_byte(self, address: u16) -> Result<u8, RomError> {
         match address{
+            a if a >= 0x6000 && a <= 0x7fff => Ok(self.pgr_ram[(a-0x6000) as usize]), // PGR RAM
             a if a >= 0x8000 && a <= 0xbfff => Ok(self.data[(a-0x8000) as usize]), // first 16 KiB of rom
             a if a >= 0xc000 && a <= 0xffff => Ok(self.data[(a-0xc000 + 0x4000) as usize]), // second 16 KiB of rom
             _ => Err(RomError::UnknownAddress)
