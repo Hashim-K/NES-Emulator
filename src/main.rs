@@ -1,19 +1,33 @@
+use std::process::ExitCode;
 use log::LevelFilter;
 use tudelft_nes_ppu::{run_cpu, Mirroring};
+use tudelft_nes_test::TestableCpu;
+use tudelft_nes_test::ROM_NROM_TEST;
 use cpu::MyCpu;
-use cartridge::Cartridge;
+use error::MyGetCpuError;
 
 mod cpu;
-mod cartridge;
+mod memory;
 mod error;
 
-fn main() {
+fn run() -> Result<(), MyGetCpuError> {
     env_logger::builder().filter_level(LevelFilter::Info).init();
 
-    let cpu = MyCpu { rom: Vec::new() };
+    let cpu = MyCpu::get_cpu(ROM_NROM_TEST)?;
 
     log::info!("running cpu");
     run_cpu(cpu, Mirroring::Horizontal);
+    Ok(())
+}
+
+fn main() -> ExitCode {
+    match run() {
+        Ok(_) => ExitCode::SUCCESS,
+        Err(a) => {
+            eprintln!("{}", a);
+            ExitCode::from(1)
+        },
+    }
 }
 
 #[cfg(test)]

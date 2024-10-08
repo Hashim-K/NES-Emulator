@@ -3,6 +3,10 @@ use crate::error::RomError;
 #[cfg(test)]
 use tudelft_nes_test::ROM_NROM_TEST;
 
+pub struct Memory {
+
+}
+
 #[derive(Debug, PartialEq)]
 pub struct RomHeader {
     mirroring: bool,
@@ -15,7 +19,7 @@ pub struct RomHeader {
 
 pub struct Cartridge {
     header: RomHeader,
-    data: &'static [u8],
+    data: Vec<u8>,
     pgr_ram: [u8; 8192], // 8 KiB of program ram
 }
 
@@ -44,7 +48,7 @@ impl Cartridge {
         let header = Self::parse_header(rom_bytes)?;
 
         match header.mapper_number {
-            0 => Ok(Cartridge { header, data: &rom_bytes[16..], pgr_ram: [0; 8192]}),
+            0 => Ok(Cartridge { header, data: rom_bytes[16..].to_vec(), pgr_ram: [0; 8192]}),
             a => Err(RomError::UnknownMapper(a)),
         }
         // TODO: implement error handling
