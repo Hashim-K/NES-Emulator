@@ -64,7 +64,7 @@ impl Cartridge {
         match address{
             a if a >= 0x6000 && a <= 0x7fff => Ok(self.pgr_ram[(a-0x6000) as usize]), // PGR RAM
             a if a >= 0x8000 && a <= 0xbfff => Ok(self.data[(a-0x8000) as usize]), // first 16 KiB of rom
-            a if a >= 0xc000 && a <= 0xffff => Ok(self.data[(a-0xc000 + 0x4000) as usize]), // second 16 KiB of rom
+            a if a >= 0xc000 => Ok(self.data[(a-0xc000 + 0x4000) as usize]), // second 16 KiB of rom
             _ => Err(RomError::UnknownAddress)
         }
     }

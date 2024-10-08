@@ -8,23 +8,16 @@ pub enum RomError {
     UnknownAddress,
     #[error("Header signature does not match specification")]
     IncorrectSignature,
-    #[error("Unknown Error: {0}")]
-    Unknown(String),
 }
 
 #[derive(Debug, Error)]
 pub enum MyTickError {
-    /// TODO: change this
-    #[error("Unknown Error: {0}")]
-    Unknown(String),
 }
 
 #[derive(Debug, Error)]
 pub enum MyGetCpuError {
     #[error("Rom Error occurred: {0}")]
     RomError(#[from] RomError),
-    #[error("Unknown Error: {0}")]
-    Unknown(String),
 }
 
 #[derive(Debug, Error)]
