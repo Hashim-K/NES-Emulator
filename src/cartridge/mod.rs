@@ -42,8 +42,12 @@ impl Cartridge {
 
     fn new (rom_bytes: &'static [u8]) -> Result<Cartridge, RomError> {
         let header = Self::parse_header(rom_bytes)?;
+
+        match header.mapper_number {
+            0 => Ok(Cartridge { header, data: &rom_bytes[16..], pgr_ram: [0; 8192]}),
+            a => Err(RomError::UnknownMapper(a)),
+        }
         // TODO: implement error handling
-        Ok(Cartridge { header, data: &rom_bytes[16..], pgr_ram: [0; 8192]})
     }
 
     fn get_memory_byte(self, address: u16) -> Result<u8, RomError> {
