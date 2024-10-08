@@ -9,7 +9,7 @@ mod error;
 fn main() {
     env_logger::builder().filter_level(LevelFilter::Info).init();
 
-    let cpu = MyCpu {};
+    let cpu = MyCpu { rom: Vec::new() };
 
     log::info!("running cpu");
     run_cpu(cpu, Mirroring::Horizontal);
