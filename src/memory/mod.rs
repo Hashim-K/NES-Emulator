@@ -30,10 +30,7 @@ impl Memory {
 
     fn get_memory_byte(self, address: u16) -> Result<u8, MemoryError> {
         match address{
-            a if a <= 0x07ff => Ok(self.internal_ram[a as usize]), // 2 KB internal RAM
-            a if a >= 0x0800 && a <= 0x0fff => Ok(self.internal_ram[(a - 0x0800) as usize]), // Mirrored RAM
-            a if a >= 0x1000 && a <= 0x17ff => Ok(self.internal_ram[(a - 0x1000) as usize]),
-            a if a >= 0x1800 && a <= 0x1fff => Ok(self.internal_ram[(a - 0x1800) as usize]),
+            a if a <= 0x1fff => Ok(self.internal_ram[(a & 0x07ff) as usize]), // RAM reading, including mirroring
             a if a >= 0x2000 && a <= 0x3fff => { let register = address_to_ppu_register(a); todo!()}, // NES PPU registers
             a if a >= 0x4000 && a <= 0x4017 => todo!(), // NES APU and I/O registers
             a if a >= 0x4018 && a <= 0x401f => todo!(), // APU and I/O functionality that is normally disabled
