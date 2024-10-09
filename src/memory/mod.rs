@@ -30,12 +30,11 @@ impl Memory {
 
     fn write_memory_byte(mut self, address: u16, value: u8) -> Option<MemoryError> {
         match address{
-            a if a <= 0x1fff => self.internal_ram[(a & 0x07ff) as usize] = value, // RAM reading, including mirroring
-            a if a >= 0x2000 && a <= 0x3fff => { let register = address_to_ppu_register(a); todo!();}, // NES PPU registers
-            a if a >= 0x4000 && a <= 0x4017 => todo!(), // NES APU and I/O registers
-            a if a >= 0x4018 && a <= 0x401f => todo!(), // APU and I/O functionality that is normally disabled
-            a if a >= 0x4020 => return self.cartridge.write_memory_byte(address, value), // Cartridge memory
-            _ => return Some(MemoryError::UnknownAddress)
+            ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
+            0x2000..0x4000 => { let register = address_to_ppu_register(address); todo!();}, // NES PPU registers
+            0x4000..0x4018 => todo!(), // NES APU and I/O registers
+            0x4018..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
+            0x4020.. => return self.cartridge.write_memory_byte(address, value), // Cartridge memory
         };
 
         return None;
@@ -43,12 +42,11 @@ impl Memory {
 
     fn get_memory_byte(self, address: u16) -> Result<u8, MemoryError> {
         match address{
-            a if a <= 0x1fff => Ok(self.internal_ram[(a & 0x07ff) as usize]), // RAM reading, including mirroring
-            a if a >= 0x2000 && a <= 0x3fff => { let register = address_to_ppu_register(a); todo!()}, // NES PPU registers
-            a if a >= 0x4000 && a <= 0x4017 => todo!(), // NES APU and I/O registers
-            a if a >= 0x4018 && a <= 0x401f => todo!(), // APU and I/O functionality that is normally disabled
-            a if a >= 0x4020 => Ok(self.cartridge.get_memory_byte(a)?), // Cartridge memory
-            _ => Err(MemoryError::UnknownAddress)
+            ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]), // RAM reading, including mirroring
+            0x2000..0x4000 => { let register = address_to_ppu_register(address); todo!()}, // NES PPU registers
+            0x4000..0x4018 => todo!(), // NES APU and I/O registers
+            0x4018..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
+            0x4020.. => Ok(self.cartridge.get_memory_byte(address)?), // Cartridge memory
         }
     }
 }
@@ -102,9 +100,9 @@ impl Cartridge {
 
     fn write_memory_byte(mut self, address: u16, value: u8) -> Option<MemoryError> {
         match address{
-            a if a >= 0x6000 && a <= 0x7fff => self.pgr_ram[(a-0x6000) as usize] = value, // PGR RAM
-            a if a >= 0x8000 && a <= 0xbfff => self.data[(a-0x8000) as usize] = value, // first 16 KiB of rom
-            a if a >= 0xc000 => self.data[(a-0xc000 + 0x4000) as usize] = value, // second 16 KiB of rom
+            0x6000..0x8000 => self.pgr_ram[(address-0x6000) as usize] = value, // PGR RAM
+            0x8000..0xc000 => self.data[(address-0x8000) as usize] = value, // first 16 KiB of rom
+            0xc000.. => self.data[(address-0xc000 + 0x4000) as usize] = value, // second 16 KiB of rom
             _ => return Some(MemoryError::UnknownAddress)
         }
 
@@ -113,9 +111,9 @@ impl Cartridge {
 
     fn get_memory_byte(self, address: u16) -> Result<u8, RomError> {
         match address{
-            a if a >= 0x6000 && a <= 0x7fff => Ok(self.pgr_ram[(a-0x6000) as usize]), // PGR RAM
-            a if a >= 0x8000 && a <= 0xbfff => Ok(self.data[(a-0x8000) as usize]), // first 16 KiB of rom
-            a if a >= 0xc000 => Ok(self.data[(a-0xc000 + 0x4000) as usize]), // second 16 KiB of rom
+            0x6000..0x8000 => Ok(self.pgr_ram[(address-0x6000) as usize]), // PGR RAM
+            0x8000..0xc000 => Ok(self.data[(address-0x8000) as usize]), // first 16 KiB of rom
+            0xc000.. => Ok(self.data[(address-0xc000 + 0x4000) as usize]), // second 16 KiB of rom
             _ => Err(RomError::UnknownAddress)
         }
     }
