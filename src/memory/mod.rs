@@ -28,13 +28,26 @@ impl Memory {
         Ok(Memory { cartridge: Cartridge::new(rom_bytes)?, internal_ram: [0; 2048] })
     }
 
+    fn write_memory_byte(mut self, address: u16, value: u8) -> Option<MemoryError> {
+        match address{
+            a if a <= 0x1fff => self.internal_ram[(a & 0x07ff) as usize] = value, // RAM reading, including mirroring
+            a if a >= 0x2000 && a <= 0x3fff => { let register = address_to_ppu_register(a); todo!();}, // NES PPU registers
+            a if a >= 0x4000 && a <= 0x4017 => todo!(), // NES APU and I/O registers
+            a if a >= 0x4018 && a <= 0x401f => todo!(), // APU and I/O functionality that is normally disabled
+            a if a >= 0x4020 => return self.cartridge.write_memory_byte(address, value), // Cartridge memory
+            _ => return Some(MemoryError::UnknownAddress)
+        };
+
+        return None;
+    }
+
     fn get_memory_byte(self, address: u16) -> Result<u8, MemoryError> {
         match address{
             a if a <= 0x1fff => Ok(self.internal_ram[(a & 0x07ff) as usize]), // RAM reading, including mirroring
             a if a >= 0x2000 && a <= 0x3fff => { let register = address_to_ppu_register(a); todo!()}, // NES PPU registers
             a if a >= 0x4000 && a <= 0x4017 => todo!(), // NES APU and I/O registers
             a if a >= 0x4018 && a <= 0x401f => todo!(), // APU and I/O functionality that is normally disabled
-            a if a >= 0x4020 => Ok(self.cartridge.get_memory_byte(a)?), // APU and I/O functionality that is normally disabled
+            a if a >= 0x4020 => Ok(self.cartridge.get_memory_byte(a)?), // Cartridge memory
             _ => Err(MemoryError::UnknownAddress)
         }
     }
@@ -85,6 +98,17 @@ impl Cartridge {
             a => Err(RomError::UnknownMapper(a)),
         }
         // TODO: implement error handling
+    }
+
+    fn write_memory_byte(mut self, address: u16, value: u8) -> Option<MemoryError> {
+        match address{
+            a if a >= 0x6000 && a <= 0x7fff => self.pgr_ram[(a-0x6000) as usize] = value, // PGR RAM
+            a if a >= 0x8000 && a <= 0xbfff => self.data[(a-0x8000) as usize] = value, // first 16 KiB of rom
+            a if a >= 0xc000 => self.data[(a-0xc000 + 0x4000) as usize] = value, // second 16 KiB of rom
+            _ => return Some(MemoryError::UnknownAddress)
+        }
+
+        return None;
     }
 
     fn get_memory_byte(self, address: u16) -> Result<u8, RomError> {
