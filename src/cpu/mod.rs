@@ -40,7 +40,7 @@ impl TestableCpu for MyCpu {
     }
 
     fn memory_read(&self, _address: u16) -> u8 {
-        todo!()
+        return self.memory.get_memory_byte(_address);
     }
 }
 
