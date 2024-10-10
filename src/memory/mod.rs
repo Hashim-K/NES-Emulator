@@ -40,7 +40,7 @@ impl Memory {
         return None;
     }
 
-    pub fn get_memory_byte(self, address: u16) -> Result<u8, MemoryError> {
+    pub fn get_memory_byte(&self, address: u16) -> Result<u8, MemoryError> {
         match address{
             ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]), // RAM reading, including mirroring
             0x2000..0x4000 => { let register = address_to_ppu_register(address); todo!()}, // NES PPU registers
@@ -109,7 +109,7 @@ impl Cartridge {
         return None;
     }
 
-    fn get_memory_byte(self, address: u16) -> Result<u8, RomError> {
+    fn get_memory_byte(&self, address: u16) -> Result<u8, RomError> {
         match address{
             0x6000..0x8000 => Ok(self.pgr_ram[(address-0x6000) as usize]), // PGR RAM
             0x8000..0xc000 => Ok(self.data[(address-0x8000) as usize]), // first 16 KiB of rom

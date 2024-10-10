@@ -40,7 +40,7 @@ impl TestableCpu for MyCpu {
     }
 
     fn memory_read(&self, _address: u16) -> u8 {
-        return self.memory.get_memory_byte(_address);
+        return self.memory.get_memory_byte(_address).expect("Could not read from memory");
     }
 }
 
