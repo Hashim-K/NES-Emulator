@@ -61,6 +61,7 @@ pub struct RomHeader {
     mapper_number: u8,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Cartridge {
     header: RomHeader,
     data: Vec<u8>,
@@ -97,7 +98,7 @@ impl Cartridge {
                 if rom_bytes[16..].len() != ((header.charactor_memory_size as u16 * 8192 + header.program_rom_size as u16 * 16384)) as usize{
                     return Err(RomError::IncorrectDataSize);
                 }
-                Ok(Cartridge { header, data: &rom_bytes[16..], pgr_ram: [0; 8192]})
+                Ok(Cartridge { header, data: rom_bytes[16..].to_vec(), pgr_ram: [0; 8192]})
             },
             a => Err(RomError::UnknownMapper(a)),
         }
@@ -150,11 +151,11 @@ fn test_new_cartridge () {
     };
     let expected_correct_cartridge: Cartridge = Cartridge {
         header: expected_header,
-        data: &ROM_NROM_TEST[16..],
+        data: ROM_NROM_TEST[16..].to_vec(),
         pgr_ram: [0; 8192]
     };
     // expect file with exact amount of bytes as specified by the header to work (ROM_NROM_TEST length = 24592)
-    assert_eq!(Cartridge::new(ROM_NROM_TEST).unwrap(), expected_correct_cartridge);
+    assert_eq!(Cartridge::new(&ROM_NROM_TEST).unwrap(), expected_correct_cartridge);
     // expect a file that does not have the amount of bytes specified by the header to generate an error
     assert_eq!(Cartridge::new(&ROM_NROM_TEST[0..24231]).unwrap_err(), RomError::IncorrectDataSize);
 }
