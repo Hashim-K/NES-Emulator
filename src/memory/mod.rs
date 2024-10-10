@@ -3,6 +3,16 @@ use crate::error::RomError;
 #[cfg(test)]
 use tudelft_nes_test::ROM_NROM_TEST;
 
+pub struct Memory {
+    cartridge: Cartridge,
+}
+
+impl Memory {
+    pub fn new (rom_bytes: &[u8]) -> Result<Memory, RomError> {
+        Ok(Memory { cartridge: Cartridge::new(rom_bytes)? })
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct RomHeader {
     mirroring: bool,
@@ -13,10 +23,13 @@ pub struct RomHeader {
     mapper_number: u8,
 }
 
-pub struct Cartrigde {
+pub struct Cartridge {
+    header: RomHeader,
+    data: Vec<u8>,
+    pgr_ram: [u8; 8192], // 8 KiB of program ram
 }
 
-impl Cartrigde {
+impl Cartridge {
 
     fn parse_header (rom_bytes: &[u8]) -> Result<RomHeader, RomError> {
         // Check rom signature
@@ -37,13 +50,25 @@ impl Cartrigde {
         })    
     }
 
-    fn parse_rom (rom_bytes: &[u8]) {
-        todo!()
+    fn new (rom_bytes: &[u8]) -> Result<Cartridge, RomError> {
+        let header = Self::parse_header(rom_bytes)?;
+
+        match header.mapper_number {
+            0 => Ok(Cartridge { header, data: rom_bytes[16..].to_vec(), pgr_ram: [0; 8192]}),
+            a => Err(RomError::UnknownMapper(a)),
+        }
+        // TODO: implement error handling
     }
 
+    fn get_memory_byte(self, address: u16) -> Result<u8, RomError> {
+        match address{
+            a if a >= 0x6000 && a <= 0x7fff => Ok(self.pgr_ram[(a-0x6000) as usize]), // PGR RAM
+            a if a >= 0x8000 && a <= 0xbfff => Ok(self.data[(a-0x8000) as usize]), // first 16 KiB of rom
+            a if a >= 0xc000 => Ok(self.data[(a-0xc000 + 0x4000) as usize]), // second 16 KiB of rom
+            _ => Err(RomError::UnknownAddress)
+        }
+    }
 }
-
-
 
 #[test]
 fn test_parse_header () {
@@ -55,5 +80,5 @@ fn test_parse_header () {
         charactor_memory_size: 1,
         mapper_number: 0
     };
-    assert_eq!(Cartrigde::parse_header(ROM_NROM_TEST).unwrap(), expected_header);
+    assert_eq!(Cartridge::parse_header(ROM_NROM_TEST).unwrap(), expected_header);
 }
