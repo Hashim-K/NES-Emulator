@@ -1,6 +1,6 @@
-use tudelft_nes_test::TestableCpu;
-use crate::error::{MyTickError, MyGetCpuError};
+use crate::error::{MyGetCpuError, MyTickError};
 use tudelft_nes_ppu::{Cpu, Ppu};
+use tudelft_nes_test::TestableCpu;
 
 pub struct MyCpu {
     pub rom: Vec<u8>,
@@ -30,7 +30,7 @@ impl TestableCpu for MyCpu {
     type GetCpuError = MyGetCpuError;
 
     fn get_cpu(_rom: &[u8]) -> Result<Self, MyGetCpuError> {
-        return Ok(MyCpu{ rom: _rom.to_vec() })
+        return Ok(MyCpu { rom: _rom.to_vec() });
     }
 
     fn set_program_counter(&mut self, _value: u16) {
@@ -41,4 +41,3 @@ impl TestableCpu for MyCpu {
         todo!()
     }
 }
-

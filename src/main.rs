@@ -1,10 +1,10 @@
+use cartridge::Cartrigde;
+use cpu::MyCpu;
 use log::LevelFilter;
 use tudelft_nes_ppu::{run_cpu, Mirroring};
-use cpu::MyCpu;
-use cartridge::Cartrigde;
 
-mod cpu;
 mod cartridge;
+mod cpu;
 mod error;
 
 fn main() {
@@ -18,9 +18,9 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use crate::cpu::MyCpu;
     use log::LevelFilter;
     use tudelft_nes_test::{run_tests, TestSelector};
-    use crate::cpu::MyCpu;
 
     /// This test fails in the template, since you didn't implement the cpu yet.
     #[ignore] // This test doesn't pass yet

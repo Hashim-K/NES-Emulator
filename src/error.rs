@@ -21,4 +21,3 @@ pub enum MyGetCpuError {
     #[error("Unknown Error: {0}")]
     Unknown(String),
 }
-
