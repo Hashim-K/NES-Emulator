@@ -2,7 +2,9 @@ use tudelft_nes_test::TestableCpu;
 use crate::error::{MyTickError, MyGetCpuError};
 use tudelft_nes_ppu::{Cpu, Ppu};
 use crate::memory::Memory;
+use registers::StatusRegister;
 
+mod registers;
 
 pub struct MyCpu {
     memory: Memory,
