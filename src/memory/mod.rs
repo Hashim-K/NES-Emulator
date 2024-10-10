@@ -28,7 +28,7 @@ impl Memory {
         Ok(Memory { cartridge: Cartridge::new(rom_bytes)?, internal_ram: [0; 2048] })
     }
 
-    fn write_memory_byte(mut self, address: u16, value: u8) -> Option<MemoryError> {
+    pub fn write_memory_byte(mut self, address: u16, value: u8) -> Option<MemoryError> {
         match address{
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => { let register = address_to_ppu_register(address); todo!();}, // NES PPU registers
@@ -40,7 +40,7 @@ impl Memory {
         return None;
     }
 
-    fn get_memory_byte(self, address: u16) -> Result<u8, MemoryError> {
+    pub fn get_memory_byte(self, address: u16) -> Result<u8, MemoryError> {
         match address{
             ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]), // RAM reading, including mirroring
             0x2000..0x4000 => { let register = address_to_ppu_register(address); todo!()}, // NES PPU registers
