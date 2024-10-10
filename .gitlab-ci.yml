@@ -1,5 +1,6 @@
 stages:
   - build
+  - linting
 
 rust-latest:
   stage: build
@@ -7,3 +8,19 @@ rust-latest:
   script:
     - cargo build --verbose
     - cargo test --verbose
+
+linting:
+  stage: linting
+  image: rust:latest
+  script:
+    - rustup component add clippy
+    - cargo clippy -- -Dwarnings
+  allow_failure: true
+
+format-check:
+  stage: linting
+  image: rust:latest
+  script:
+    - rustup component add rustfmt
+    - cargo fmt --check
+  allow_failure: true
