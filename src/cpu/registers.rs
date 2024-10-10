@@ -87,6 +87,13 @@ impl ProgramCounter {
     //     self.binary_value = 0xFFFC;
     // }
 } 
+//                                                                                       
+//                                                                                       
+//                                                                                       
+//                                                                                       
+//                                                                                       
+//                                                                                       
+//                                                                                       
 //  ooooooooooooo      oooooooooooo       .oooooo..o      ooooooooooooo       .oooooo..o 
 //  8'   888   `8      `888'     `8      d8P'    `Y8      8'   888   `8      d8P'    `Y8 
 //       888            888              Y88bo.                888           Y88bo.      
@@ -94,13 +101,6 @@ impl ProgramCounter {
 //       888            888    "              `"Y88b           888                `"Y88b 
 //       888            888       o      oo     .d8P           888           oo     .d8P 
 //      o888o          o888ooooood8      8""88888P'           o888o          8""88888P'  
-//                                                                                       
-//                                                                                       
-//                                                                                       
-//                                                                                       
-//                                                                                       
-//                                                                                       
-//                                                                                       
 //                                                                                       
 //                                                                                       
 //                                                                                       
