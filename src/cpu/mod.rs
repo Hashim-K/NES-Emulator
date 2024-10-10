@@ -30,7 +30,7 @@ impl TestableCpu for MyCpu {
     type GetCpuError = MyGetCpuError;
 
     fn get_cpu(_rom: &[u8]) -> Result<Self, MyGetCpuError> {
-        return Ok(MyCpu { rom: _rom.to_vec() });
+        Ok(MyCpu { rom: _rom.to_vec() })
     }
 
     fn set_program_counter(&mut self, _value: u16) {
