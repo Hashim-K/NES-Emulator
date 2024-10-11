@@ -1,8 +1,7 @@
-use tudelft_nes_test::TestableCpu;
-use crate::error::{MyTickError, MyGetCpuError};
-use tudelft_nes_ppu::{Cpu, Ppu};
+use crate::error::{MyGetCpuError, MyTickError};
 use crate::memory::Memory;
-
+use tudelft_nes_ppu::{Cpu, Ppu};
+use tudelft_nes_test::TestableCpu;
 
 pub struct MyCpu {
     memory: Memory,
@@ -32,7 +31,9 @@ impl TestableCpu for MyCpu {
     type GetCpuError = MyGetCpuError;
 
     fn get_cpu(_rom: &[u8]) -> Result<Self, MyGetCpuError> {
-        return Ok(MyCpu{ memory: Memory::new(_rom)? })
+        Ok(MyCpu {
+            memory: Memory::new(_rom)?,
+        })
     }
 
     fn set_program_counter(&mut self, _value: u16) {
@@ -40,7 +41,9 @@ impl TestableCpu for MyCpu {
     }
 
     fn memory_read(&self, _address: u16) -> u8 {
-        return self.memory.get_memory_byte(_address).expect("Could not read from memory");
+        return self
+            .memory
+            .get_memory_byte(_address)
+            .expect("Could not read from memory");
     }
 }
-
