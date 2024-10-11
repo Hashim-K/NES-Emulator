@@ -43,7 +43,7 @@ impl Memory {
             0x4020.. => return self.cartridge.write_memory_byte(address, value), // Cartridge memory
         };
 
-        return None;
+        None
     }
 
     pub fn get_memory_byte(&self, address: u16) -> Result<u8, MemoryError> {
@@ -118,7 +118,7 @@ impl Cartridge {
             _ => return Some(MemoryError::UnknownAddress),
         }
 
-        return None;
+        None
     }
 
     fn get_memory_byte(&self, address: u16) -> Result<u8, RomError> {
