@@ -70,6 +70,7 @@ pub struct RomHeader {
     mapper_number: u8,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Cartridge {
     header: RomHeader,
     data: Vec<u8>,
@@ -100,11 +101,20 @@ impl Cartridge {
         let header = Self::parse_header(rom_bytes)?;
 
         match header.mapper_number {
-            0 => Ok(Cartridge {
-                header,
-                data: rom_bytes[16..].to_vec(),
-                pgr_ram: [0; 8192],
-            }),
+            0 => {
+                // check if amount of data is correct
+                if rom_bytes[16..].len()
+                    != (header.charactor_memory_size as u16 * 8192
+                        + header.program_rom_size as u16 * 16384) as usize
+                {
+                    return Err(RomError::IncorrectDataSize);
+                }
+                Ok(Cartridge {
+                    header,
+                    data: rom_bytes[16..].to_vec(),
+                    pgr_ram: [0; 8192],
+                })
+            }
             a => Err(RomError::UnknownMapper(a)),
         }
         // TODO: implement error handling
@@ -144,5 +154,32 @@ fn test_parse_header() {
     assert_eq!(
         Cartridge::parse_header(ROM_NROM_TEST).unwrap(),
         expected_header
+    );
+}
+
+#[test]
+fn test_new_cartridge() {
+    let expected_header = RomHeader {
+        mirroring: false,
+        peristent_memory: false,
+        ignore_mirroring_control: false,
+        program_rom_size: 1,
+        charactor_memory_size: 1,
+        mapper_number: 0,
+    };
+    let expected_correct_cartridge: Cartridge = Cartridge {
+        header: expected_header,
+        data: ROM_NROM_TEST[16..].to_vec(),
+        pgr_ram: [0; 8192],
+    };
+    // expect file with exact amount of bytes as specified by the header to work (ROM_NROM_TEST length = 24592)
+    assert_eq!(
+        Cartridge::new(&ROM_NROM_TEST).unwrap(),
+        expected_correct_cartridge
+    );
+    // expect a file that does not have the amount of bytes specified by the header to generate an error
+    assert_eq!(
+        Cartridge::new(&ROM_NROM_TEST[0..24231]).unwrap_err(),
+        RomError::IncorrectDataSize
     );
 }
