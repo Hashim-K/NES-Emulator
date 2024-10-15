@@ -1,7 +1,10 @@
 use crate::error::{MyGetCpuError, MyTickError};
 use crate::memory::Memory;
+use registers::StatusRegister;
 use tudelft_nes_ppu::{Cpu, Ppu};
 use tudelft_nes_test::TestableCpu;
+
+mod registers;
 
 pub struct MyCpu {
     memory: Memory,
