@@ -19,8 +19,7 @@ pub enum MemoryError {
 }
 
 #[derive(Debug, Error)]
-pub enum MyTickError {
-}
+pub enum MyTickError {}
 
 #[derive(Debug, Error)]
 pub enum MyGetCpuError {
@@ -33,4 +32,3 @@ pub enum MainError {
     #[error("Get Cpu Error occurred: {0}")]
     MyGetCpuError(#[from] MyGetCpuError),
 }
-
