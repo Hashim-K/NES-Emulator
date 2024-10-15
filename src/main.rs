@@ -1,5 +1,7 @@
 use error::MainError;
 use log::LevelFilter;
+use std::env;
+use std::fs;
 use std::process::ExitCode;
 use system::System;
 use tudelft_nes_ppu::{run_cpu, Mirroring};
@@ -11,10 +13,10 @@ mod error;
 mod memory;
 mod system;
 
-fn run() -> Result<(), MainError> {
+fn run(file_bytes: &[u8]) -> Result<(), MainError> {
     env_logger::builder().filter_level(LevelFilter::Info).init();
 
-    let cpu = System::get_cpu(ROM_NROM_TEST)?;
+    let cpu = System::get_cpu(file_bytes)?;
 
     log::info!("running cpu");
     run_cpu(cpu, Mirroring::Horizontal);
@@ -22,7 +24,20 @@ fn run() -> Result<(), MainError> {
 }
 
 fn main() -> ExitCode {
-    match run() {
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() > 2 {
+        eprintln!("Invalid number of arguments");
+        return ExitCode::from(2);
+    }
+
+    let file_bytes = if args.len() == 2 {
+        fs::read(&args[1]).unwrap()
+    } else {
+        ROM_NROM_TEST.to_vec()
+    };
+
+    match run(&file_bytes) {
         Ok(_) => ExitCode::SUCCESS,
         Err(a) => {
             eprintln!("{}", a);
