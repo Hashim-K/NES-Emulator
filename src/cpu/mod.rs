@@ -414,18 +414,18 @@ impl Instruction {
 
             Instruction::STA(_) => {
                 let address: u16 = operand_value.address.expect("STA Address is None");
-                cpu.memory_write(address, cpu.accumulator.get());
+                cpu.memory_write(address, cpu.accumulator.get())?;
                 Ok(())
             }
             Instruction::STX(_) => {
                 let address: u16 = operand_value.address.expect("STX Address is None");
-                cpu.memory_write(address, cpu.x_register.get());
+                cpu.memory_write(address, cpu.x_register.get())?;
                 Ok(())
             }
 
             Instruction::STY(_) => {
                 let address: u16 = operand_value.address.expect("STY Address is None");
-                cpu.memory_write(address, cpu.y_register.get());
+                cpu.memory_write(address, cpu.y_register.get())?;
                 Ok(())
             }
 
