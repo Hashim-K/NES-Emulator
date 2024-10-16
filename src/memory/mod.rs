@@ -31,7 +31,7 @@ impl Memory {
         })
     }
 
-    pub fn write_memory_byte(mut self, address: u16, value: u8) -> Result<(), MemoryError> {
+    pub fn write_memory_byte(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {
@@ -120,7 +120,7 @@ impl Cartridge {
         // TODO: implement error handling
     }
 
-    fn write_memory_byte(mut self, address: u16, value: u8) -> Result<(), MemoryError> {
+    fn write_memory_byte(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
         match address {
             0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
             0x8000..0xc000 => self.data[(address - 0x8000) as usize] = value, // first 16 KiB of rom
