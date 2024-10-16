@@ -1,5 +1,5 @@
 use crate::error::{MemoryError, RomError};
-use tudelft_nes_ppu::PpuRegister;
+use tudelft_nes_ppu::{Mirroring, PpuRegister};
 
 #[cfg(test)]
 use tudelft_nes_test::ROM_NROM_TEST;
@@ -58,11 +58,15 @@ impl Memory {
             0x4020.. => Ok(self.cartridge.get_memory_byte(address)?), // Cartridge memory
         }
     }
+
+    pub fn get_mirroring(&self) -> Mirroring {
+        self.cartridge.header.mirroring
+    }
 }
 
 #[derive(Debug, PartialEq)]
 pub struct RomHeader {
-    mirroring: bool,
+    mirroring: Mirroring,
     peristent_memory: bool,
     ignore_mirroring_control: bool,
     program_rom_size: u8,
@@ -90,7 +94,11 @@ impl Cartridge {
         Ok(RomHeader {
             program_rom_size: rom_bytes[4],
             charactor_memory_size: rom_bytes[5],
-            mirroring: (rom_bytes[6] & 1) != 0,
+            mirroring: if (rom_bytes[6] & 1) != 0 {
+                Mirroring::Vertical
+            } else {
+                Mirroring::Horizontal
+            },
             ignore_mirroring_control: (rom_bytes[6] >> 3 & 1) != 0,
             peristent_memory: (rom_bytes[6] >> 1 & 1) != 0,
             mapper_number: (rom_bytes[6] >> 4) & (rom_bytes[7] & 0b11110000),
@@ -144,7 +152,7 @@ impl Cartridge {
 #[test]
 fn test_parse_header() {
     let expected_header = RomHeader {
-        mirroring: false,
+        mirroring: Mirroring::Horizontal,
         peristent_memory: false,
         ignore_mirroring_control: false,
         program_rom_size: 1,
@@ -160,7 +168,7 @@ fn test_parse_header() {
 #[test]
 fn test_new_cartridge() {
     let expected_header = RomHeader {
-        mirroring: false,
+        mirroring: Mirroring::Horizontal,
         peristent_memory: false,
         ignore_mirroring_control: false,
         program_rom_size: 1,

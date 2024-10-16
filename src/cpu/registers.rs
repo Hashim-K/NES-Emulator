@@ -17,12 +17,11 @@ pub(crate) struct StatusRegister {
     decimal_bit: bool,
     break_bit: bool,
     overflow_bit: bool,
-    negative_bit: bool,    
+    negative_bit: bool,
 }
 
-
 impl StatusRegister {
-    pub(crate) fn set_bit(&mut self, bit: StatusRegisterBit, value: bool) -> (){
+    pub(crate) fn set_bit(&mut self, bit: StatusRegisterBit, value: bool) -> () {
         match bit {
             StatusRegisterBit::CarryBit => self.carry_bit = value,
             StatusRegisterBit::ZeroBit => self.zero_bit = value,
@@ -35,7 +34,7 @@ impl StatusRegister {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct CpuRegister {
     binary_value: u8,
 }
@@ -45,15 +44,16 @@ impl CpuRegister {
         return self.binary_value;
     }
 
-    pub(crate) fn set(&mut self, value: u8) -> (){
+    pub(crate) fn set(&mut self, value: u8) -> () {
         self.binary_value = value;
     }
 
-    pub(crate) fn increment(&mut self) -> (){
+    pub(crate) fn increment(&mut self) -> () {
         self.binary_value = self.binary_value.wrapping_add(1);
     }
 }
 
+#[derive(Default)]
 pub(crate) struct ProgramCounter {
     binary_value: u16,
 }
@@ -63,7 +63,7 @@ impl ProgramCounter {
         return self.binary_value;
     }
 
-    pub(crate) fn set(&mut self, value: u16) -> (){
+    pub(crate) fn set(&mut self, value: u16) -> () {
         self.binary_value = value;
     }
 
@@ -86,27 +86,27 @@ impl ProgramCounter {
     //     //TODO: Doublecheck reset value
     //     self.binary_value = 0xFFFC;
     // }
-} 
-//                                                                                       
-//                                                                                       
-//                                                                                       
-//                                                                                       
-//                                                                                       
-//                                                                                       
-//                                                                                       
-//  ooooooooooooo      oooooooooooo       .oooooo..o      ooooooooooooo       .oooooo..o 
-//  8'   888   `8      `888'     `8      d8P'    `Y8      8'   888   `8      d8P'    `Y8 
-//       888            888              Y88bo.                888           Y88bo.      
-//       888            888oooo8          `"Y8888o.            888            `"Y8888o.  
-//       888            888    "              `"Y88b           888                `"Y88b 
-//       888            888       o      oo     .d8P           888           oo     .d8P 
-//      o888o          o888ooooood8      8""88888P'           o888o          8""88888P'  
-//                                                                                       
-//                                                                                       
-//                                                                                       
-//                                                                                       
-//                                                                                       
-//                                                                                       
+}
+//
+//
+//
+//
+//
+//
+//
+//  ooooooooooooo      oooooooooooo       .oooooo..o      ooooooooooooo       .oooooo..o
+//  8'   888   `8      `888'     `8      d8P'    `Y8      8'   888   `8      d8P'    `Y8
+//       888            888              Y88bo.                888           Y88bo.
+//       888            888oooo8          `"Y8888o.            888            `"Y8888o.
+//       888            888    "              `"Y88b           888                `"Y88b
+//       888            888       o      oo     .d8P           888           oo     .d8P
+//      o888o          o888ooooood8      8""88888P'           o888o          8""88888P'
+//
+//
+//
+//
+//
+//
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,7 +183,9 @@ mod tests {
 
     #[test]
     fn test_program_counter_increment() {
-        let mut pc: ProgramCounter = ProgramCounter { binary_value: 0xFFFF };
+        let mut pc: ProgramCounter = ProgramCounter {
+            binary_value: 0xFFFF,
+        };
 
         pc.increment();
         assert_eq!(pc.get(), 0);
