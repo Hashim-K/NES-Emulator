@@ -1,6 +1,5 @@
 use crate::error::MyTickError;
 use registers::{CpuRegister, ProgramCounter, StatusRegister, StatusRegisterBit};
-use tudelft_nes_ppu::Ppu;
 
 use crate::memory::Memory;
 use crate::MainError;
@@ -22,7 +21,7 @@ enum AddressingMode {
     ZeroPageY,   // Operand is 1 byte,   instruction size is 2 bytes
 }
 
-struct operand_value {
+struct OperandValue {
     value: Option<u8>,
     address: Option<u16>,
 }
@@ -708,8 +707,6 @@ impl Instruction {
                 //TODO: Implement
                 Ok(())
             }
-
-            _ => panic!("Unknown instruction"),
         }
     }
 
@@ -804,7 +801,7 @@ impl Cpu {
         &mut self,
         addressing_mode: &AddressingMode,
         memory: &mut Memory,
-    ) -> Result<operand_value, MainError> {
+    ) -> Result<OperandValue, MainError> {
         let mut hh: u8 = 0;
         let mut ll: u8 = 0;
 
@@ -819,7 +816,7 @@ impl Cpu {
         }
         match addressing_mode {
             // A	        Accumulator	            OPC A	        operand is AC (implied single byte instruction)
-            AddressingMode::Accumulator => Ok(operand_value {
+            AddressingMode::Accumulator => Ok(OperandValue {
                 value: Some(self.accumulator.get()),
                 address: None,
             }),
@@ -827,7 +824,7 @@ impl Cpu {
             // abs	        absolute	            OPC $LLHH	    operand is address $HHLL *
             AddressingMode::Absolute => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
-                Ok(operand_value {
+                Ok(OperandValue {
                     address: Some(address),
                     value: Some(self.memory_read(address, memory)?),
                 })
@@ -836,7 +833,7 @@ impl Cpu {
             // abs,X	    absolute, X-indexed	    OPC $LLHH,X	    operand is address; effective address is address incremented by X with carry **
             AddressingMode::AbsoluteX => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
-                Ok(operand_value {
+                Ok(OperandValue {
                     address: Some(address + self.x_register.get() as u16),
                     value: Some(self.memory_read(address + self.y_register.get() as u16, memory)?),
                 })
@@ -845,20 +842,20 @@ impl Cpu {
             // abs,Y	    absolute, Y-indexed	    OPC $LLHH,Y	    operand is address; effective address is address incremented by Y with carry **
             AddressingMode::AbsoluteY => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
-                Ok(operand_value {
+                Ok(OperandValue {
                     address: Some(address + self.y_register.get() as u16),
                     value: Some(self.memory_read(address + self.y_register.get() as u16, memory)?),
                 })
             }
 
             // #	        immediate	            OPC #$BB	    operand is byte BB
-            AddressingMode::Immediate => Ok(operand_value {
+            AddressingMode::Immediate => Ok(OperandValue {
                 value: Some(ll),
                 address: None,
             }),
 
             // impl	        implied	                OPC	            operand implied
-            AddressingMode::Implied => Ok(operand_value {
+            AddressingMode::Implied => Ok(OperandValue {
                 value: None,
                 address: None,
             }),
@@ -869,7 +866,7 @@ impl Cpu {
                 let memory_ll: u8 = self.memory_read(address, memory)?;
                 let memory_hh: u8 = self.memory_read(address + 1, memory)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
-                Ok(operand_value {
+                Ok(OperandValue {
                     address: Some(memory_address),
                     value: Some(self.memory_read(memory_address, memory)?),
                 })
@@ -881,7 +878,7 @@ impl Cpu {
                 let memory_ll: u8 = self.memory_read(address, memory)?;
                 let memory_hh: u8 = self.memory_read(address + 1, memory)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
-                Ok(operand_value {
+                Ok(OperandValue {
                     address: Some(memory_address),
                     value: Some(self.memory_read(memory_address, memory)?),
                 })
@@ -893,7 +890,7 @@ impl Cpu {
                 let memory_ll: u8 = self.memory_read(address, memory)? + self.y_register.get();
                 let memory_hh: u8 = self.memory_read(address + 1, memory)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
-                Ok(operand_value {
+                Ok(OperandValue {
                     address: Some(memory_address),
                     value: Some(self.memory_read(memory_address, memory)?),
                 })
@@ -902,7 +899,7 @@ impl Cpu {
             // rel	        relative	            OPC $BB	        branch target is PC + signed offset BB ***
             AddressingMode::Relative => {
                 let offset: i8 = ll as i8;
-                Ok(operand_value {
+                Ok(OperandValue {
                     value: None,
                     address: Some((self.program_counter.get() as i16 + offset as i16) as u16),
                 })
@@ -911,7 +908,7 @@ impl Cpu {
             // zpg	        zeropage	            OPC $LL	        operand is zeropage address (hi-byte is zero, address = $00LL)
             AddressingMode::ZeroPage => {
                 let address: u16 = (0 as u16) << 8 | ll as u16;
-                Ok(operand_value {
+                Ok(OperandValue {
                     address: Some(address),
                     value: Some(self.memory_read(address, memory)?),
                 })
@@ -920,7 +917,7 @@ impl Cpu {
             // zpg,X	    zeropage, X-indexed	    OPC $LL,X	    operand is zeropage address; effective address is address incremented by X without carry **
             AddressingMode::ZeroPageX => {
                 let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
-                Ok(operand_value {
+                Ok(OperandValue {
                     address: Some(address),
                     value: Some(self.memory_read(address, memory)?),
                 })
@@ -929,7 +926,7 @@ impl Cpu {
             // zpg,Y	    zeropage, Y-indexed	    OPC $LL,Y	    operand is zeropage address; effective address is address incremented by Y without carry **
             AddressingMode::ZeroPageY => {
                 let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
-                Ok(operand_value {
+                Ok(OperandValue {
                     address: Some(address),
                     value: Some(self.memory_read(address, memory)?),
                 })
@@ -958,7 +955,7 @@ impl Cpu {
         Ok(())
     }
 
-    pub fn tick(&mut self, ppu: &mut Ppu, memory: &mut Memory) -> Result<(), MyTickError> {
+    pub fn tick(&mut self, memory: &mut Memory) -> Result<(), MyTickError> {
         let opcode = self
             .read_next_value(memory)
             .expect("Failed reading next value");

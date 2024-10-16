@@ -8,8 +8,6 @@ pub enum RomError {
     UnknownAddress,
     #[error("Header signature does not match specification")]
     IncorrectSignature,
-    #[error("Unknown Error: {0}")]
-    Unknown(String),
     #[error("Given amount of data does not match header")]
     IncorrectDataSize,
 }
@@ -23,8 +21,7 @@ pub enum MemoryError {
 }
 
 #[derive(Debug, Error)]
-pub enum MyTickError {
-}
+pub enum MyTickError {}
 
 #[derive(Debug, Error)]
 pub enum MyGetCpuError {
@@ -40,4 +37,3 @@ pub enum MainError {
     #[error("Memory Error occurred: {0}")]
     MemoryError(#[from] MemoryError),
 }
-

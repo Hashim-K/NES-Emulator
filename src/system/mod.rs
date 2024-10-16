@@ -15,7 +15,7 @@ impl CpuTemplate for System {
     type TickError = MyTickError;
 
     fn tick(&mut self, _ppu: &mut Ppu) -> Result<(), MyTickError> {
-        self.cpu.tick(_ppu, &mut self.memory)
+        self.cpu.tick(&mut self.memory)
     }
 
     fn ppu_read_chr_rom(&self, _offset: u16) -> u8 {

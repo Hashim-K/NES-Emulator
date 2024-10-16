@@ -35,7 +35,7 @@ impl Memory {
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {
-                let register = address_to_ppu_register(address);
+                let _register = address_to_ppu_register(address);
                 todo!();
             } // NES PPU registers
             0x4000..0x4018 => todo!(), // NES APU and I/O registers
@@ -50,7 +50,7 @@ impl Memory {
         match address {
             ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]), // RAM reading, including mirroring
             0x2000..0x4000 => {
-                let register = address_to_ppu_register(address);
+                let _register = address_to_ppu_register(address);
                 todo!()
             } // NES PPU registers
             0x4000..0x4018 => todo!(), // NES APU and I/O registers
