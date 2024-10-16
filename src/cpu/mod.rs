@@ -200,7 +200,9 @@ impl Cpu {
         let opcode = self
             .read_next_value(memory)
             .expect("Failed reading next value");
+        println!("Reading opcode {:?}", opcode);
         let instruction = Instruction::decode(opcode).expect("Failed decoding opcode");
+        println!("Executing instruction {:?}", instruction);
         instruction
             .execute(self, memory)
             .expect("Failed executing instruction");

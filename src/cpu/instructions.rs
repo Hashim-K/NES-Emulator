@@ -2,11 +2,13 @@ use crate::cpu::{Cpu, StatusRegisterBit};
 use crate::memory::Memory;
 use crate::MainError;
 
+#[derive(Debug)]
 pub struct Instruction {
     pub instruction_type: InstructionType,
     pub addressing_mode: AddressingMode,
 }
 
+#[derive(Debug)]
 pub enum AddressingMode {
     Accumulator, // No operand,          instruction size is 1 byte
     Absolute,    // Operand is 2 bytes,  instruction size is 3 bytes
@@ -43,6 +45,7 @@ impl AddressingMode {
     }
 }
 
+#[derive(Debug)]
 pub enum InstructionType {
     //888      8888888888  .d8888b.         d8888 888
     //888      888        d88P  Y88b       d88888 888
