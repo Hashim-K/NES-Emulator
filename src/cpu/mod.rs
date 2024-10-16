@@ -1,4 +1,6 @@
+use crate::error::MyTickError;
 use registers::{CpuRegister, ProgramCounter, StatusRegister, StatusRegisterBit};
+use tudelft_nes_ppu::Ppu;
 
 use crate::memory::Memory;
 use crate::MainError;
@@ -948,5 +950,14 @@ impl Cpu {
 
     pub fn link_tick_function(&mut self, function: fn()) {
         self.tick_function = function;
+    }
+
+    pub fn tick(&mut self, _ppu: &mut Ppu) -> Result<(), MyTickError> {
+        let opcode = self.read_next_value().expect("Failed reading next value");
+        let instruction = Instruction::decode(opcode).expect("Failed decoding opcode");
+        instruction
+            .execute(self)
+            .expect("Failed executing instruction");
+        Ok(())
     }
 }
