@@ -47,7 +47,7 @@ impl Memory {
     }
 
     pub fn get_memory_byte(&self, address: u16) -> Result<u8, MemoryError> {
-        match address {
+        let value = match address {
             ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]), // RAM reading, including mirroring
             0x2000..0x4000 => {
                 let _register = address_to_ppu_register(address);
@@ -56,7 +56,17 @@ impl Memory {
             0x4000..0x4018 => todo!(), // NES APU and I/O registers
             0x4018..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
             0x4020.. => Ok(self.cartridge.get_memory_byte(address)?), // Cartridge memory
+        };
+
+        // Debug printing
+        if value.is_ok() {
+            let tmp = value.unwrap();
+            println!("Read memory byte at address {}: {:?}", address, tmp);
+            return Ok(tmp);
+        } else {
+            println!("Read memory byte at address {}: FAILED", address);
         }
+        return value;
     }
 
     pub fn get_mirroring(&self) -> Mirroring {
