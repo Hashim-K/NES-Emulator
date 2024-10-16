@@ -53,7 +53,6 @@ impl CpuRegister {
     }
 }
 
-#[derive(Default)]
 pub(crate) struct ProgramCounter {
     binary_value: u16,
 }
@@ -80,6 +79,12 @@ impl ProgramCounter {
 
     pub(crate) fn increment(&mut self) -> () {
         self.binary_value = self.binary_value.wrapping_add(1);
+    }
+
+    pub(crate) fn new() -> Self {
+        ProgramCounter {
+            binary_value: 0xFFFC,
+        }
     }
 
     // pub(crate) fn reset(&mut self) {

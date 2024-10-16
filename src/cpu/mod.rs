@@ -29,7 +29,7 @@ impl Cpu {
             x_register: CpuRegister::default(),
             y_register: CpuRegister::default(),
             stack_pointer: CpuRegister::default(),
-            program_counter: ProgramCounter::default(),
+            program_counter: ProgramCounter::new(),
             status_register: StatusRegister::default(),
             current_instruction: Instruction {
                 instruction_type: InstructionType::NOP,
