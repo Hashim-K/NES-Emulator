@@ -822,6 +822,13 @@ impl Instruction {
         }
     }
 
+    // Set negative bit if the number read is negative
+    fn set_status_if_negative(value: u8, cpu: &mut Cpu) {
+        // Check if 7th bit is set
+        cpu.status_register
+            .set_bit(StatusRegisterBit::NegativeBit, value & (1 << 7) > 0);
+    }
+
     pub fn execute(&self, cpu: &mut Cpu, memory: &mut Memory) -> Result<(), MainError> {
         let operand_value = cpu.get_operand_value(&self.addressing_mode, memory)?;
         match self.instruction_type {
@@ -829,9 +836,7 @@ impl Instruction {
                 let value = operand_value.value.expect("LDA operand value is None");
                 cpu.x_register.set(value);
                 Self::set_status_if_zero(value, cpu);
-                // set negative bit to the value of the 7th bit
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::NegativeBit, (value as u8) > 127);
+                Self::set_status_if_negative(value, cpu);
                 Ok(())
             }
 
@@ -840,9 +845,7 @@ impl Instruction {
                 let value = operand_value.value.expect("LDX operand value is None");
                 cpu.x_register.set(value);
                 Self::set_status_if_zero(value, cpu);
-                // set negative bit to the value of the 7th bit
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::NegativeBit, (value as u8) > 127);
+                Self::set_status_if_negative(value, cpu);
                 Ok(())
             }
 
@@ -850,9 +853,7 @@ impl Instruction {
                 let value = operand_value.value.expect("LDY operand value is None");
                 cpu.y_register.set(value);
                 Self::set_status_if_zero(value, cpu);
-                // set negative bit to the value of the 7th bit
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::NegativeBit, (value as u8) > 127);
+                Self::set_status_if_negative(value, cpu);
                 Ok(())
             }
 
