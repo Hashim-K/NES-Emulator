@@ -811,20 +811,24 @@ impl Instruction {
         }
     }
 
+    // Set zero bit if the number read is 0
+    fn set_status_if_zero(value: u8, cpu: &mut Cpu) {
+        if value == 0 {
+            cpu.status_register
+                .set_bit(StatusRegisterBit::ZeroBit, true);
+        } else {
+            cpu.status_register
+                .set_bit(StatusRegisterBit::ZeroBit, false);
+        }
+    }
+
     pub fn execute(&self, cpu: &mut Cpu, memory: &mut Memory) -> Result<(), MainError> {
         let operand_value = cpu.get_operand_value(&self.addressing_mode, memory)?;
         match self.instruction_type {
             InstructionType::LDA => {
                 let value = operand_value.value.expect("LDA operand value is None");
                 cpu.x_register.set(value);
-                // set zero bit if the number read is 0
-                if value == 0 {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                } else {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                }
+                Self::set_status_if_zero(value, cpu);
                 // set negative bit to the value of the 7th bit
                 cpu.status_register
                     .set_bit(StatusRegisterBit::NegativeBit, (value as u8) > 127);
@@ -835,14 +839,7 @@ impl Instruction {
             InstructionType::LDX => {
                 let value = operand_value.value.expect("LDX operand value is None");
                 cpu.x_register.set(value);
-                // set zero bit if the number read is 0
-                if value == 0 {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                } else {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                }
+                Self::set_status_if_zero(value, cpu);
                 // set negative bit to the value of the 7th bit
                 cpu.status_register
                     .set_bit(StatusRegisterBit::NegativeBit, (value as u8) > 127);
@@ -852,14 +849,7 @@ impl Instruction {
             InstructionType::LDY => {
                 let value = operand_value.value.expect("LDY operand value is None");
                 cpu.y_register.set(value);
-                // set zero bit if the number read is 0
-                if value == 0 {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                } else {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                }
+                Self::set_status_if_zero(value, cpu);
                 // set negative bit to the value of the 7th bit
                 cpu.status_register
                     .set_bit(StatusRegisterBit::NegativeBit, (value as u8) > 127);
