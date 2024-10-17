@@ -102,16 +102,22 @@ impl ProgramCounter {
         self.binary_value = value;
     }
 
-    //TODO: implement endianness-dependent version
-    // pub(crate) fn set_lobit(&mut self, value: u8) {
-    //     let addition_value: u16 = value as u16;
-    //     self.binary_value = self.binary_value & 0b0000_0000_1111_1111;
-    // }
+    pub(crate) fn get_lobyte(&self) -> u8 {
+        return self.binary_value as u8;
+    }
 
-    // pub(crate) fn set_hibit(&mut self, value: u8) {
-    //     let comparison_value: u16 = (value as u16) << 8;
-    //     self.binary_value = self.binary_value & comparison_value;
-    // }
+    pub(crate) fn get_hibyte(&self) -> u8 {
+        return (self.binary_value >> 8) as u8;
+    }
+
+    pub(crate) fn set_lobit(&mut self, value: u8) {
+        self.binary_value = (self.binary_value - self.binary_value & 0x00FF) + value as u16;
+    }
+
+    pub(crate) fn set_hibit(&mut self, value: u8) {
+        self.binary_value =
+            (self.binary_value - self.binary_value & 0xFF00) | ((value as u16) << 8);
+    }
 
     pub(crate) fn increment(&mut self) -> () {
         self.binary_value = self.binary_value.wrapping_add(1);
