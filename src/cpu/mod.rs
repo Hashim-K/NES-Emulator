@@ -176,14 +176,13 @@ impl Cpu {
     }
 
     fn read_next_value(&mut self, memory: &mut Memory) -> Result<u8, MainError> {
-        println!("{:?}", "test");
-        let value = memory.get_memory_byte(self.program_counter.get())?;
+        let value = memory.read(self.program_counter.get())?;
         self.program_counter.increment();
         Ok(value)
     }
 
     fn memory_read(&self, address: u16, memory: &mut Memory) -> Result<u8, MainError> {
-        let memory_value = memory.get_memory_byte(address)?;
+        let memory_value = memory.read(address)?;
         Ok(memory_value)
     }
 
@@ -193,7 +192,7 @@ impl Cpu {
         value: u8,
         memory: &mut Memory,
     ) -> Result<(), MainError> {
-        memory.write_memory_byte(address, value)?;
+        memory.write(address, value)?;
         Ok(())
     }
 
