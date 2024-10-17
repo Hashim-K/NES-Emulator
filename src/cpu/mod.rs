@@ -220,6 +220,8 @@ impl Cpu {
     }
 
     pub fn tick(&mut self, memory: &mut Memory) -> Result<(), MyTickError> {
+        self.handle_interrupts(memory)?;
+
         if self.current_cycle > self.instruction_cycle_count {
             self.current_cycle = 1;
 
@@ -240,6 +242,13 @@ impl Cpu {
 
         self.current_cycle += 1;
 
+        Ok(())
+    }
+
+    pub fn handle_interrupts(&mut self, memory: &mut Memory) -> Result<(), MainError> {
+        // if self.irq {}
+        // if self.nmi {}
+        // if self.res {}
         Ok(())
     }
 }
