@@ -21,7 +21,10 @@ pub enum MemoryError {
 }
 
 #[derive(Debug, Error)]
-pub enum MyTickError {}
+pub enum MyTickError {
+    #[error("MainError occured in one of the functions during a cpu tick")]
+    MainError(#[from] MainError),
+}
 
 #[derive(Debug, Error)]
 pub enum MyGetCpuError {
