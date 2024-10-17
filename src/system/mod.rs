@@ -20,7 +20,7 @@ impl CpuTemplate for System {
 
     fn ppu_read_chr_rom(&self, _offset: u16) -> u8 {
         self.memory
-            .get_memory_byte(_offset)
+            .read(_offset)
             .expect("Failed reading character ROM")
     }
 
@@ -50,7 +50,7 @@ impl TestableCpu for System {
     fn memory_read(&self, _address: u16) -> u8 {
         return self
             .memory
-            .get_memory_byte(_address)
+            .read(_address)
             .expect("Could not read from memory");
     }
 }
