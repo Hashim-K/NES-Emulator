@@ -4,7 +4,6 @@ pub(crate) enum StatusRegisterBit {
     ZeroBit,
     InterruptBit,
     DecimalBit,
-    BreakBit,
     OverflowBit,
     NegativeBit,
 }
@@ -15,7 +14,6 @@ pub(crate) struct StatusRegister {
     zero_bit: bool,
     interrupt_bit: bool,
     decimal_bit: bool,
-    break_bit: bool,
     overflow_bit: bool,
     negative_bit: bool,
 }
@@ -27,10 +25,29 @@ impl StatusRegister {
             StatusRegisterBit::ZeroBit => self.zero_bit = value,
             StatusRegisterBit::InterruptBit => self.interrupt_bit = value,
             StatusRegisterBit::DecimalBit => self.decimal_bit = value,
-            StatusRegisterBit::BreakBit => self.break_bit = value,
             StatusRegisterBit::OverflowBit => self.overflow_bit = value,
             StatusRegisterBit::NegativeBit => self.negative_bit = value,
         }
+    }
+
+    pub(crate) fn get(self) -> u8 {
+        (self.carry_bit as u8) << 0
+            | (self.zero_bit as u8) << 1
+            | (self.interrupt_bit as u8) << 2
+            | (self.decimal_bit as u8) << 3
+            | 1 << 4
+            | 1 << 5
+            | (self.overflow_bit as u8) << 6
+            | (self.negative_bit as u8) << 7
+    }
+
+    pub(crate) fn set_from_stack(&mut self, value: u8) {
+        self.carry_bit = (value & 1 << 0) != 0;
+        self.zero_bit = (value & 1 << 1) != 0;
+        self.interrupt_bit = (value & 1 << 2) != 0;
+        self.decimal_bit = (value & 1 << 3) != 0;
+        self.overflow_bit = (value & 1 << 6) != 0;
+        self.negative_bit = (value & 1 << 7) != 0;
     }
 }
 
@@ -50,6 +67,10 @@ impl CpuRegister {
 
     pub(crate) fn increment(&mut self) -> () {
         self.binary_value = self.binary_value.wrapping_add(1);
+    }
+
+    pub(crate) fn decrement(&mut self) -> () {
+        self.binary_value = self.binary_value.wrapping_sub(1);
     }
 }
 
@@ -92,6 +113,7 @@ impl ProgramCounter {
     //     self.binary_value = 0xFFFC;
     // }
 }
+
 //
 //
 //
@@ -135,10 +157,6 @@ mod tests {
         // Test setting the DecimalBit to true
         sr.set_bit(StatusRegisterBit::DecimalBit, true);
         assert_eq!(sr.decimal_bit, true);
-
-        // Test setting the BreakBit to false
-        sr.set_bit(StatusRegisterBit::BreakBit, false);
-        assert_eq!(sr.break_bit, false);
 
         // Test setting the OverflowBit to true
         sr.set_bit(StatusRegisterBit::OverflowBit, true);

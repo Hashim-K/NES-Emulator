@@ -903,32 +903,46 @@ impl Instruction {
             }
 
             InstructionType::TSX => {
-                //TODO: Implement
+                cpu.x_register.set(cpu.stack_pointer.get());
+                Self::set_status_if_zero(cpu.x_register.get(), cpu);
+                Self::set_status_if_negative(cpu.x_register.get(), cpu);
                 Ok(())
             }
 
             InstructionType::TXS => {
-                //TODO: Implement
+                cpu.stack_pointer.set(cpu.x_register.get());
+                Self::set_status_if_zero(cpu.stack_pointer.get(), cpu);
+                Self::set_status_if_negative(cpu.stack_pointer.get(), cpu);
                 Ok(())
             }
 
             InstructionType::PHA => {
-                //TODO: Implement
+                let address = 0x0100 + cpu.stack_pointer.get() as u16;
+                memory.write(address, cpu.accumulator.get())?;
+                cpu.stack_pointer.increment();
                 Ok(())
             }
 
             InstructionType::PHP => {
-                //TODO: Implement
+                let address = 0x0100 + cpu.stack_pointer.get() as u16;
+                memory.write(address, cpu.status_register.get())?;
+                cpu.stack_pointer.increment();
                 Ok(())
             }
 
             InstructionType::PLA => {
-                //TODO: Implement
+                let address = 0x0100 + cpu.stack_pointer.get() as u16;
+                cpu.accumulator.set(memory.read(address)?);
+                cpu.stack_pointer.decrement();
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
                 Ok(())
             }
 
             InstructionType::PLP => {
-                //TODO: Implement
+                let address = 0x0100 + cpu.stack_pointer.get() as u16;
+                let value = memory.read(address)?;
+                cpu.status_register.set_from_stack(value);
                 Ok(())
             }
 
