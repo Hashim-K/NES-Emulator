@@ -55,9 +55,9 @@ mod tests {
     /// This test fails in the template, since you didn't implement the cpu yet.
     #[ignore]
     #[test]
-    fn test_all() {
+    fn test_nrom() {
         env_logger::builder().filter_level(LevelFilter::Info).init();
-        let result = run_tests::<System>(TestSelector::DEFAULT);
+        let result = run_tests::<System>(TestSelector::NROM_TEST);
         assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
     }
 }

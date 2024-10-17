@@ -1,5 +1,5 @@
 use crate::error::{MemoryError, RomError};
-use tudelft_nes_ppu::PpuRegister;
+use tudelft_nes_ppu::{Mirroring, PpuRegister};
 
 #[cfg(test)]
 use tudelft_nes_test::ROM_NROM_TEST;
@@ -31,38 +31,52 @@ impl Memory {
         })
     }
 
-    pub fn write_memory_byte(mut self, address: u16, value: u8) -> Result<(), MemoryError> {
+    pub fn write(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {
-                let register = address_to_ppu_register(address);
+                let _register = address_to_ppu_register(address);
                 todo!();
             } // NES PPU registers
             0x4000..0x4018 => todo!(), // NES APU and I/O registers
             0x4018..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
-            0x4020.. => return self.cartridge.write_memory_byte(address, value), // Cartridge memory
+            0x4020.. => return self.cartridge.write(address, value), // Cartridge memory
         };
 
         Ok(())
     }
 
-    pub fn get_memory_byte(&self, address: u16) -> Result<u8, MemoryError> {
-        match address {
+    pub fn read(&self, address: u16) -> Result<u8, MemoryError> {
+        let value = match address {
             ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]), // RAM reading, including mirroring
             0x2000..0x4000 => {
-                let register = address_to_ppu_register(address);
+                let _register = address_to_ppu_register(address);
                 todo!()
             } // NES PPU registers
             0x4000..0x4018 => todo!(), // NES APU and I/O registers
             0x4018..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
-            0x4020.. => Ok(self.cartridge.get_memory_byte(address)?), // Cartridge memory
+            0x4020.. => Ok(self.cartridge.read(address)?), // Cartridge memory
+        };
+
+        // Debug printing
+        if value.is_ok() {
+            let tmp = value.unwrap();
+            println!("Read memory byte at address {}: {:?}", address, tmp);
+            return Ok(tmp);
+        } else {
+            println!("Read memory byte at address {}: FAILED", address);
         }
+        return value;
+    }
+
+    pub fn get_mirroring(&self) -> Mirroring {
+        self.cartridge.header.mirroring
     }
 }
 
 #[derive(Debug, PartialEq)]
 pub struct RomHeader {
-    mirroring: bool,
+    mirroring: Mirroring,
     peristent_memory: bool,
     ignore_mirroring_control: bool,
     program_rom_size: u8,
@@ -90,7 +104,11 @@ impl Cartridge {
         Ok(RomHeader {
             program_rom_size: rom_bytes[4],
             charactor_memory_size: rom_bytes[5],
-            mirroring: (rom_bytes[6] & 1) != 0,
+            mirroring: if (rom_bytes[6] & 1) != 0 {
+                Mirroring::Vertical
+            } else {
+                Mirroring::Horizontal
+            },
             ignore_mirroring_control: (rom_bytes[6] >> 3 & 1) != 0,
             peristent_memory: (rom_bytes[6] >> 1 & 1) != 0,
             mapper_number: (rom_bytes[6] >> 4) & (rom_bytes[7] & 0b11110000),
@@ -120,7 +138,7 @@ impl Cartridge {
         // TODO: implement error handling
     }
 
-    fn write_memory_byte(mut self, address: u16, value: u8) -> Result<(), MemoryError> {
+    fn write(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
         match address {
             0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
             0x8000..0xc000 => self.data[(address - 0x8000) as usize] = value, // first 16 KiB of rom
@@ -131,7 +149,7 @@ impl Cartridge {
         Ok(())
     }
 
-    fn get_memory_byte(&self, address: u16) -> Result<u8, RomError> {
+    fn read(&self, address: u16) -> Result<u8, RomError> {
         match address {
             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
             0x8000..0xc000 => Ok(self.data[(address - 0x8000) as usize]),    // first 16 KiB of rom
@@ -144,7 +162,7 @@ impl Cartridge {
 #[test]
 fn test_parse_header() {
     let expected_header = RomHeader {
-        mirroring: false,
+        mirroring: Mirroring::Horizontal,
         peristent_memory: false,
         ignore_mirroring_control: false,
         program_rom_size: 1,
@@ -160,7 +178,7 @@ fn test_parse_header() {
 #[test]
 fn test_new_cartridge() {
     let expected_header = RomHeader {
-        mirroring: false,
+        mirroring: Mirroring::Horizontal,
         peristent_memory: false,
         ignore_mirroring_control: false,
         program_rom_size: 1,
