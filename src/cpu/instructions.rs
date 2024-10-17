@@ -875,12 +875,30 @@ impl Instruction {
             }
 
             InstructionType::TAX => {
-                //TODO: Implement
+                cpu.x_register.set(cpu.accumulator.get());
+                Self::set_status_if_zero(cpu.x_register.get(), cpu);
+                Self::set_status_if_negative(cpu.x_register.get(), cpu);
                 Ok(())
             }
 
             InstructionType::TAY => {
-                //TODO: Implement
+                cpu.y_register.set(cpu.accumulator.get());
+                Self::set_status_if_zero(cpu.y_register.get(), cpu);
+                Self::set_status_if_negative(cpu.y_register.get(), cpu);
+                Ok(())
+            }
+
+            InstructionType::TXA => {
+                cpu.accumulator.set(cpu.x_register.get());
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
+                Ok(())
+            }
+
+            InstructionType::TYA => {
+                cpu.accumulator.set(cpu.y_register.get());
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
                 Ok(())
             }
 
@@ -889,17 +907,7 @@ impl Instruction {
                 Ok(())
             }
 
-            InstructionType::TXA => {
-                //TODO: Implement
-                Ok(())
-            }
-
             InstructionType::TXS => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::TYA => {
                 //TODO: Implement
                 Ok(())
             }
