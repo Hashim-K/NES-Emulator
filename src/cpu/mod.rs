@@ -20,6 +20,12 @@ pub struct Cpu {
     program_counter: ProgramCounter,
     status_register: StatusRegister,
     current_instruction: Instruction,
+    current_cycle: u8,
+    instruction_cycle_count: u8,
+    irq: bool,
+    nmi: bool,
+    res: bool,
+    in_interrupt: bool,
 }
 
 impl Cpu {
@@ -34,7 +40,13 @@ impl Cpu {
             current_instruction: Instruction {
                 instruction_type: InstructionType::NOP,
                 addressing_mode: AddressingMode::Absolute,
-            }, // TODO check if this default is okay
+            },
+            current_cycle: 0,
+            instruction_cycle_count: 0,
+            irq: false,
+            nmi: false,
+            res: true,
+            in_interrupt: false,
         }
     }
 
@@ -208,15 +220,35 @@ impl Cpu {
     }
 
     pub fn tick(&mut self, memory: &mut Memory) -> Result<(), MyTickError> {
-        let opcode = self
-            .read_next_value(memory)
-            .expect("Failed reading next value");
-        println!("Reading opcode {:?}", opcode);
-        let instruction = Instruction::decode(opcode).expect("Failed decoding opcode");
-        println!("Executing instruction {:?}", instruction);
-        instruction
-            .execute(self, memory)
-            .expect("Failed executing instruction");
+        self.handle_interrupts(memory)?;
+
+        if self.current_cycle > self.instruction_cycle_count {
+            self.current_cycle = 1;
+
+            let opcode = self.read_next_value(memory)?;
+            println!("Reading opcode {:?}", opcode);
+
+            let instruction: Instruction =
+                Instruction::decode(opcode).expect("Failed decoding opcode");
+            println!("Executing instruction {:?}", instruction);
+            instruction.execute(self, memory)?;
+
+            self.instruction_cycle_count = self.current_instruction.addressing_mode.length();
+            if self.current_instruction.is_rmw() {
+                self.instruction_cycle_count -= 1;
+            }
+            self.current_instruction = instruction;
+        }
+
+        self.current_cycle += 1;
+
+        Ok(())
+    }
+
+    pub fn handle_interrupts(&mut self, memory: &mut Memory) -> Result<(), MainError> {
+        // if self.irq {}
+        // if self.nmi {}
+        // if self.res {}
         Ok(())
     }
 }
