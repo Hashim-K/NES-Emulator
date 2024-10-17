@@ -176,6 +176,7 @@ impl Cpu {
     }
 
     fn read_next_value(&mut self, memory: &mut Memory) -> Result<u8, MainError> {
+        println!("{:?}", "test");
         let value = memory.get_memory_byte(self.program_counter.get())?;
         self.program_counter.increment();
         Ok(value)
