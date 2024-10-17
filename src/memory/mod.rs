@@ -88,7 +88,9 @@ pub struct RomHeader {
     mirroring: Mirroring,
     peristent_memory: bool,
     ignore_mirroring_control: bool,
+    trainer: bool,
     program_rom_size: u8,
+    program_ram_size: u8,
     charactor_memory_size: u8,
     mapper_number: u8,
 }
@@ -121,6 +123,8 @@ impl Cartridge {
             },
             ignore_mirroring_control: (rom_bytes[6] >> 3 & 1) != 0,
             peristent_memory: (rom_bytes[6] >> 1 & 1) != 0,
+            trainer: (rom_bytes[6] >> 2 & 1) != 0,
+            program_ram_size: rom_bytes[8],
             mapper_number: (rom_bytes[6] >> 4) & (rom_bytes[7] & 0b11110000),
         })
     }
