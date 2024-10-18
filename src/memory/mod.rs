@@ -31,6 +31,15 @@ impl Memory {
         })
     }
 
+    pub fn write_ppu_byte(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
+        self.cartridge.chr_data[address as usize] = value;
+        Ok(())
+    }
+
+    pub fn read_ppu_byte(&self, address: u16) -> Result<u8, MemoryError> {
+        return Ok(self.cartridge.chr_data[address as usize]);
+    }
+
     pub fn write_memory_byte(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
@@ -87,7 +96,8 @@ pub struct RomHeader {
 #[derive(Debug, PartialEq)]
 pub struct Cartridge {
     header: RomHeader,
-    data: Vec<u8>,
+    prg_data: Vec<u8>,
+    chr_data: Vec<u8>,
     pgr_ram: [u8; 8192], // 8 KiB of program ram
 }
 
@@ -128,13 +138,16 @@ impl Cartridge {
                 {
                     return Err(RomError::IncorrectDataSize);
                 }
-                let mut cartridge_bytes: Vec<u8> = rom_bytes[16..].to_vec();
+                let mut cartridge_prg_rom: Vec<u8> = rom_bytes[16..16400].to_vec();
+                let mut Cartridge_chr_rom: Vec<u8> = rom_bytes[16400..].to_vec();
                 if header.charactor_memory_size != 2 {
-                    cartridge_bytes = [cartridge_bytes,rom_bytes[16400..].to_vec()].concat();
+                    cartridge_prg_rom = [cartridge_prg_rom,rom_bytes[16..16400].to_vec()].concat();
                 }
                 Ok(Cartridge {
                     header,
-                    data: cartridge_bytes,
+                    prg_data: cartridge_prg_rom,
+                    chr_data: Cartridge_chr_rom,
+                    // pgr ram needs to mirror itself to fill 8kib
                     pgr_ram: [0; 8192],
                 })
             }
@@ -146,8 +159,8 @@ impl Cartridge {
     fn write_memory_byte(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
         match address {
             0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
-            0x8000..0xc000 => self.data[(address - 0x8000) as usize] = value, // first 16 KiB of rom
-            0xc000.. => self.data[(address - 0xc000 + 0x4000) as usize] = value, // second 16 KiB of rom
+            0x8000..0xc000 => self.prg_data[(address - 0x8000) as usize] = value, // first 16 KiB of prg rom
+            0xc000.. => self.prg_data[(address - 0xc000 + 0x4000) as usize] = value, // last 16 KiB of prg rom
             _ => return Err(MemoryError::UnknownAddress),
         }
 
@@ -157,8 +170,8 @@ impl Cartridge {
     fn get_memory_byte(&self, address: u16) -> Result<u8, RomError> {
         match address {
             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
-            0x8000..0xc000 => Ok(self.data[(address - 0x8000) as usize]),    // first 16 KiB of rom
-            0xc000.. => Ok(self.data[(address - 0xc000 + 0x4000) as usize]), // second 16 KiB of rom
+            0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000) as usize]),    // first 16 KiB of prg rom
+            0xc000.. => Ok(self.prg_data[(address - 0xc000 + 0x4000) as usize]), // last 16 KiB of prg rom
             _ => Err(RomError::UnknownAddress),
         }
     }
@@ -193,7 +206,8 @@ fn test_new_cartridge() {
     };
     let expected_correct_cartridge: Cartridge = Cartridge {
         header: expected_header,
-        data: ROM_NROM_TEST[16..].to_vec(),
+        prg_data: ROM_NROM_TEST[16..].to_vec(),
+        chr_data: ROM_NROM_TEST[16..].to_vec(),
         pgr_ram: [0; 8192],
     };
     // expect file with exact amount of bytes as specified by the header to work (ROM_NROM_TEST length = 24592)

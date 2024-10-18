@@ -20,7 +20,7 @@ impl CpuTemplate for System {
 
     fn ppu_read_chr_rom(&self, _offset: u16) -> u8 {
         self.memory
-            .get_memory_byte(_offset)
+            .read_ppu_byte(_offset)
             .expect("Failed reading character ROM")
     }
 
