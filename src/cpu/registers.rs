@@ -212,6 +212,16 @@ mod tests {
         // Test setting another value
         pc.set(0xFFFF);
         assert_eq!(pc.get(), 0xFFFF);
+
+        pc.set(0x0000);
+        pc.set_hibit(0xFF);
+        assert_eq!(pc.get(), 0xFF00);
+        assert_eq!(pc.get_hibyte(), 0xFF);
+
+        pc.set(0x0000);
+        pc.set_lobit(0xFF);
+        assert_eq!(pc.get(), 0x00FF);
+        assert_eq!(pc.get_lobyte(), 0xFF);
     }
 
     #[test]
