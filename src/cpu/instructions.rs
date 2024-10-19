@@ -1015,17 +1015,40 @@ impl Instruction {
             }
 
             InstructionType::AND => {
-                //TODO: Implement
+                let value = cpu.accumulator.get()
+                    & operand_value.value.expect("Operand value for AND is None");
+                cpu.accumulator.set(value);
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
                 Ok(())
             }
 
             InstructionType::EOR => {
-                //TODO: Implement
+                let value = cpu.accumulator.get()
+                    ^ operand_value.value.expect("Operand value for EOR is None");
+                cpu.accumulator.set(value);
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
                 Ok(())
             }
 
             InstructionType::ORA => {
-                //TODO: Implement
+                let value = cpu.accumulator.get()
+                    | operand_value.value.expect("Operand value for ORA is None");
+                cpu.accumulator.set(value);
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
+                Ok(())
+            }
+
+            InstructionType::BIT => {
+                let operator_value = operand_value.value.expect("Operand value for EOR is None");
+                let value = cpu.accumulator.get() & operator_value;
+                Self::set_status_if_zero(value, cpu);
+                Self::set_status_if_negative(operator_value, cpu);
+                // Check if 6th bit is set
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::OverflowBit, value & (1 << 6) > 0);
                 Ok(())
             }
 
@@ -1160,11 +1183,6 @@ impl Instruction {
             }
 
             InstructionType::RTI => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::BIT => {
                 //TODO: Implement
                 Ok(())
             }
