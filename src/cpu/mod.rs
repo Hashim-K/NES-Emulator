@@ -176,9 +176,20 @@ impl Cpu {
     }
 
     fn read_next_value(&mut self, memory: &mut Memory) -> Result<u8, MainError> {
+        if self.program_counter.get() == 0xFFFC {
+            self.read_reset_vector(memory)?;
+        }
         let value = memory.read(self.program_counter.get())?;
         self.program_counter.increment();
         Ok(value)
+    }
+
+    fn read_reset_vector(&mut self, memory: &mut Memory) -> Result<(), MainError> {
+        let lower_reset_byte = memory.read(0xfffc)?;
+        let upper_reset_byte = memory.read(0xfffd)?;
+        let reset_vector: u16 = ((upper_reset_byte as u16) << 8 | lower_reset_byte as u16);
+        self.program_counter.set(reset_vector);
+        Ok(())
     }
 
     fn memory_read(&self, address: u16, memory: &mut Memory) -> Result<u8, MainError> {
