@@ -1,10 +1,14 @@
-use crate::cpu::instructions::{AddressingMode, Instruction, InstructionType};
-use crate::error::MyTickError;
-use registers::{CpuRegister, ProgramCounter, StatusRegister, StatusRegisterBit};
+use std::any::Any;
+use std::sync::mpsc::RecvTimeoutError;
 
+use crate::cpu::instructions::{AddressingMode, Instruction, InstructionType};
+use crate::error::{MemoryError, MyTickError};
 use crate::memory::Memory;
 use crate::MainError;
+use interrupt_handler::InterruptState;
+use registers::{CpuRegister, ProgramCounter, StatusRegister, StatusRegisterBit};
 mod instructions;
+mod interrupt_handler;
 mod registers;
 
 struct OperandValue {
@@ -22,10 +26,13 @@ pub struct Cpu {
     current_instruction: Instruction,
     current_cycle: u8,
     instruction_cycle_count: u8,
-    irq: bool,
-    nmi: bool,
-    res: bool,
-    in_interrupt: bool,
+    interrupt_polling_cycle: u8,
+    interrupt_state: InterruptState,
+    nmi_line_prev: bool,
+    nmi_line_current: bool,
+    nmi_line_triggered: bool,
+    irq_line_triggered: bool,
+    initialized: bool,
 }
 
 impl Cpu {
@@ -41,12 +48,15 @@ impl Cpu {
                 instruction_type: InstructionType::NOP,
                 addressing_mode: AddressingMode::Absolute,
             },
-            current_cycle: 0,
+            current_cycle: 1,
             instruction_cycle_count: 0,
-            irq: false,
-            nmi: false,
-            res: true,
-            in_interrupt: false,
+            interrupt_polling_cycle: 0,
+            interrupt_state: InterruptState::NormalOperation,
+            nmi_line_prev: false,
+            nmi_line_current: false,
+            nmi_line_triggered: false,
+            irq_line_triggered: true,
+            initialized: false,
         }
     }
 
@@ -220,35 +230,161 @@ impl Cpu {
     }
 
     pub fn tick(&mut self, memory: &mut Memory) -> Result<(), MyTickError> {
-        self.handle_interrupts(memory)?;
-
+        // set the cpu to the startup state fi
+        if !self.initialized {
+            self.initialize_cpu(memory)?;
+        }
+        if self.current_cycle == self.interrupt_polling_cycle {
+            // this line is for interrupt hijacking to be working later
+            let current_interrupt = self.poll_interrupts(memory, false);
+            if current_interrupt == InterruptState::IRQ
+                && self
+                    .status_register
+                    .get_bit(StatusRegisterBit::InterruptBit)
+            {
+                self.interrupt_state = InterruptState::NormalOperation;
+            } else {
+                self.interrupt_state = current_interrupt;
+            }
+        }
+        // execute interrupt or opcode
         if self.current_cycle > self.instruction_cycle_count {
             self.current_cycle = 1;
 
-            let opcode = self.read_next_value(memory)?;
-            println!("Reading opcode {:?}", opcode);
+            match self.interrupt_state {
+                InterruptState::NMI => {
+                    self.push_pc_and_status_on_stack(memory)?;
+                    let nmi_lobit = memory.read(0xFFFA)?;
+                    let nmi_hibit = memory.read(0xFFFB)?;
+                    self.program_counter.set_lobit(nmi_lobit);
+                    self.program_counter.set_hibit(nmi_hibit);
 
-            let instruction: Instruction =
-                Instruction::decode(opcode).expect("Failed decoding opcode");
-            println!("Executing instruction {:?}", instruction);
-            instruction.execute(self, memory)?;
+                    self.instruction_cycle_count = 7;
+                    self.interrupt_state = InterruptState::NormalOperation;
+                    self.interrupt_polling_cycle = 0;
+                    // TODO: there is conflicting info on masswerk and nesdev whether this line should happen
+                    // self.status_register
+                    //     .set_bit(StatusRegisterBit::InterruptBit, true);
+                }
+                InterruptState::IRQ => {
+                    // TODO: interface for irq
+                    ();
+                }
+                InterruptState::NormalOperation => {
+                    let opcode = self.read_next_value(memory)?;
+                    println!("Reading opcode {:?}", opcode);
 
-            self.instruction_cycle_count = self.current_instruction.addressing_mode.length();
-            if self.current_instruction.is_rmw() {
-                self.instruction_cycle_count -= 1;
+                    let instruction: Instruction =
+                        Instruction::decode(opcode).expect("Failed decoding opcode");
+                    println!("Executing instruction {:?}", instruction);
+                    instruction.execute(self, memory)?;
+
+                    self.instruction_cycle_count =
+                        self.current_instruction.addressing_mode.length();
+
+                    self.interrupt_polling_cycle = self.instruction_cycle_count - 1;
+
+                    if self.current_instruction.is_rmw() {
+                        self.instruction_cycle_count -= 1;
+                    }
+                    self.current_instruction = instruction;
+                }
             }
-            self.current_instruction = instruction;
         }
 
-        self.current_cycle += 1;
+        // interrupt hijacking, if an interrupt arrives in the first four cycles of a BRK
+        if self.current_instruction.instruction_type == InstructionType::BRK
+            && self.current_cycle < 4
+        {
+            let current_interrupt = self.poll_interrupts(memory, false);
+            match current_interrupt {
+                InterruptState::NMI => {
+                    let nmi_lobit = memory.read(0xFFFA)?;
+                    let nmi_hibit = memory.read(0xFFFB)?;
+                    self.program_counter.set_lobit(nmi_lobit);
+                    self.program_counter.set_hibit(nmi_hibit);
 
+                    self.instruction_cycle_count = 7;
+                    self.interrupt_state = InterruptState::NormalOperation;
+                    self.interrupt_polling_cycle = 0;
+                }
+                InterruptState::IRQ => {
+                    if !self
+                        .status_register
+                        .get_bit(StatusRegisterBit::InterruptBit)
+                    {
+                        let nmi_lobit = memory.read(0xFFFE)?;
+                        let nmi_hibit = memory.read(0xFFFF)?;
+                        self.program_counter.set_lobit(nmi_lobit);
+                        self.program_counter.set_hibit(nmi_hibit);
+
+                        self.instruction_cycle_count = 7;
+                        self.interrupt_state = InterruptState::NormalOperation;
+                        self.interrupt_polling_cycle = 0;
+                    }
+                }
+                InterruptState::NormalOperation => (),
+            }
+        }
+
+        if self.nmi_line_current && !self.nmi_line_prev {
+            self.nmi_line_triggered = true;
+        }
+        self.current_cycle += 1;
+        self.nmi_line_prev = self.nmi_line_prev;
+        self.nmi_line_current = false;
         Ok(())
     }
 
-    pub fn handle_interrupts(&mut self, memory: &mut Memory) -> Result<(), MainError> {
-        // if self.irq {}
-        // if self.nmi {}
-        // if self.res {}
+    pub fn on_non_maskable_interrupt(&mut self) {
+        self.nmi_line_current = true;
+    }
+
+    fn push_pc_and_status_on_stack(&mut self, memory: &mut Memory) -> Result<(), MemoryError> {
+        memory.write(
+            self.stack_pointer.get() as u16 + 0x0100,
+            self.program_counter.get_hibyte(),
+        )?;
+        self.stack_pointer.decrement();
+        memory.write(
+            self.stack_pointer.get() as u16 + 0x0100,
+            self.program_counter.get_lobyte(),
+        )?;
+        self.stack_pointer.decrement();
+        memory.write(
+            self.stack_pointer.get() as u16 + 0x0100,
+            self.status_register.get_byte(),
+        )?;
+        self.stack_pointer.decrement();
+        Ok(())
+    }
+
+    fn poll_interrupts(&mut self, memory: &mut Memory, reset_lines: bool) -> InterruptState {
+        let return_value: InterruptState;
+        if self.nmi_line_triggered {
+            return_value = InterruptState::NMI;
+        } else if self.irq_line_triggered {
+            return_value = InterruptState::IRQ;
+        } else {
+            return_value = InterruptState::NormalOperation;
+        }
+        self.irq_line_triggered = false;
+        self.nmi_line_triggered = false;
+        return_value
+    }
+
+    fn initialize_cpu(&mut self, memory: &mut Memory) -> Result<(), MemoryError> {
+        let nmi_lobit = memory.read(0xFFFC)?;
+        let nmi_hibit = memory.read(0xFFFD)?;
+        self.program_counter.set_lobit(nmi_lobit);
+        self.program_counter.set_hibit(nmi_hibit);
+        self.stack_pointer.set(0xFF);
+
+        self.instruction_cycle_count = 7;
+        self.interrupt_state = InterruptState::NormalOperation;
+        self.interrupt_polling_cycle = 0;
+        self.initialized = true;
+
         Ok(())
     }
 }
