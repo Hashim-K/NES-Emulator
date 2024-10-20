@@ -25,7 +25,7 @@ impl CpuTemplate for System {
     }
 
     fn non_maskable_interrupt(&mut self) {
-        todo!()
+        self.cpu.on_non_maskable_interrupt();
     }
 }
 
