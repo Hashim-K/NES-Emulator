@@ -179,7 +179,7 @@ impl Cpu {
         if self.program_counter.get() == 0xFFFC {
             self.read_reset_vector(memory)?;
         }
-        let value = memory.get_memory_byte(self.program_counter.get())?;
+        let value = memory.read(self.program_counter.get())?;
         self.program_counter.increment();
         Ok(value)
     }
@@ -193,7 +193,7 @@ impl Cpu {
     }
 
     fn memory_read(&self, address: u16, memory: &mut Memory) -> Result<u8, MainError> {
-        let memory_value = memory.get_memory_byte(address)?;
+        let memory_value = memory.read(address)?;
         Ok(memory_value)
     }
 
@@ -203,7 +203,7 @@ impl Cpu {
         value: u8,
         memory: &mut Memory,
     ) -> Result<(), MainError> {
-        memory.write_memory_byte(address, value)?;
+        memory.write(address, value)?;
         Ok(())
     }
 

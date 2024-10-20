@@ -40,7 +40,7 @@ impl Memory {
         return Ok(self.cartridge.chr_data[address as usize]);
     }
 
-    pub fn write_memory_byte(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
+    pub fn write(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {
@@ -49,13 +49,13 @@ impl Memory {
             } // NES PPU registers
             0x4000..0x4018 => todo!(), // NES APU and I/O registers
             0x4018..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
-            0x4020.. => return self.cartridge.write_memory_byte(address, value), // Cartridge memory
+            0x4020.. => return self.cartridge.write(address, value), // Cartridge memory
         };
 
         Ok(())
     }
 
-    pub fn get_memory_byte(&self, address: u16) -> Result<u8, MemoryError> {
+    pub fn read(&self, address: u16) -> Result<u8, MemoryError> {
         let value = match address {
             ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]), // RAM reading, including mirroring
             0x2000..0x4000 => {
@@ -64,7 +64,7 @@ impl Memory {
             } // NES PPU registers
             0x4000..0x4018 => todo!(), // NES APU and I/O registers
             0x4018..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
-            0x4020.. => Ok(self.cartridge.get_memory_byte(address)?), // Cartridge memory
+            0x4020.. => Ok(self.cartridge.read(address)?), // Cartridge memory
         };
 
         // Debug printing
@@ -156,7 +156,7 @@ impl Cartridge {
         // TODO: implement error handling
     }
 
-    fn write_memory_byte(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
+    fn write(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
         match address {
             0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
             0x8000..0xc000 => self.prg_data[(address - 0x8000) as usize] = value, // first 16 KiB of prg rom
@@ -167,7 +167,7 @@ impl Cartridge {
         Ok(())
     }
 
-    fn get_memory_byte(&self, address: u16) -> Result<u8, RomError> {
+    fn read(&self, address: u16) -> Result<u8, RomError> {
         match address {
             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
             0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000) as usize]),    // first 16 KiB of prg rom
