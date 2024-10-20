@@ -1085,7 +1085,7 @@ impl Instruction {
             }
 
             InstructionType::BIT => {
-                let operator_value = operand_value.value.expect("Operand value for EOR is None");
+                let operator_value = operand_value.value.expect("Operand value for BIT is None");
                 let value = cpu.accumulator.get() & operator_value;
                 Self::set_status_if_zero(value, cpu);
                 Self::set_status_if_negative(operator_value, cpu);
@@ -1096,22 +1096,68 @@ impl Instruction {
             }
 
             InstructionType::ASL => {
-                //TODO: Implement
+                let operator_value = operand_value.value.expect("Operand value for ASL is None");
+                let result = operator_value << 1;
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 7) != 0);
+                Self::set_status_if_zero(result, cpu);
+                Self::set_status_if_negative(result, cpu);
+
+                if let Some(address) = operand_value.address {
+                    memory.write(address, result)?;
+                } else {
+                    cpu.accumulator.set(result)
+                }
                 Ok(())
             }
 
             InstructionType::LSR => {
-                //TODO: Implement
+                let operator_value = operand_value.value.expect("Operand value for LSR is None");
+                let result = operator_value << 1;
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 7) != 0);
+                Self::set_status_if_zero(result, cpu);
+                Self::set_status_if_negative(result, cpu);
+
+                if let Some(address) = operand_value.address {
+                    memory.write(address, result)?;
+                } else {
+                    cpu.accumulator.set(result)
+                }
                 Ok(())
             }
 
             InstructionType::ROL => {
-                //TODO: Implement
+                let operator_value = operand_value.value.expect("Operand value for ROL is None");
+                let carry = u8::from(cpu.status_register.get_carry());
+                let result = operator_value << 1 | carry;
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 7) != 0);
+                Self::set_status_if_zero(result, cpu);
+                Self::set_status_if_negative(result, cpu);
+
+                if let Some(address) = operand_value.address {
+                    memory.write(address, result)?;
+                } else {
+                    cpu.accumulator.set(result)
+                }
                 Ok(())
             }
 
             InstructionType::ROR => {
-                //TODO: Implement
+                let operator_value = operand_value.value.expect("Operand value for ROR is None");
+                let carry = u8::from(cpu.status_register.get_carry());
+                let result = operator_value >> 1 | carry << 7;
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 0) != 0);
+                Self::set_status_if_zero(result, cpu);
+                Self::set_status_if_negative(result, cpu);
+
+                if let Some(address) = operand_value.address {
+                    memory.write(address, result)?;
+                } else {
+                    cpu.accumulator.set(result)
+                }
                 Ok(())
             }
 
