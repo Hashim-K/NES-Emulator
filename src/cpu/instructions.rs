@@ -1162,37 +1162,44 @@ impl Instruction {
             }
 
             InstructionType::CLC => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, false);
                 Ok(())
             }
 
             InstructionType::CLD => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::DecimalBit, false);
                 Ok(())
             }
 
             InstructionType::CLI => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::InterruptBit, false);
                 Ok(())
             }
 
             InstructionType::CLV => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::OverflowBit, false);
                 Ok(())
             }
 
             InstructionType::SEC => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, false);
                 Ok(())
             }
 
             InstructionType::SED => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::DecimalBit, false);
                 Ok(())
             }
 
             InstructionType::SEI => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::InterruptBit, false);
                 Ok(())
             }
 
