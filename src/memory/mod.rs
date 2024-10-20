@@ -141,7 +141,7 @@ impl Cartridge {
                 let mut cartridge_prg_rom: Vec<u8> = rom_bytes[16..16400].to_vec();
                 let mut Cartridge_chr_rom: Vec<u8> = rom_bytes[16400..].to_vec();
                 if header.charactor_memory_size != 2 {
-                    cartridge_prg_rom = [cartridge_prg_rom,rom_bytes[16..16400].to_vec()].concat();
+                    cartridge_prg_rom = [cartridge_prg_rom, rom_bytes[16..16400].to_vec()].concat();
                 }
                 Ok(Cartridge {
                     header,
@@ -170,7 +170,7 @@ impl Cartridge {
     fn read(&self, address: u16) -> Result<u8, RomError> {
         match address {
             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
-            0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000) as usize]),    // first 16 KiB of prg rom
+            0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000) as usize]), // first 16 KiB of prg rom
             0xc000.. => Ok(self.prg_data[(address - 0xc000 + 0x4000) as usize]), // last 16 KiB of prg rom
             _ => Err(RomError::UnknownAddress),
         }
