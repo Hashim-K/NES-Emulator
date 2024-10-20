@@ -45,7 +45,7 @@ impl AddressingMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum InstructionType {
     //888      8888888888  .d8888b.         d8888 888
     //888      888        d88P  Y88b       d88888 888
