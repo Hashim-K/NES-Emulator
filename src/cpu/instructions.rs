@@ -946,61 +946,51 @@ impl Instruction {
                 Ok(())
             }
 
-            InstructionType::DEC => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::DEX => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::DEY => {
-                //TODO: Implement
-                Ok(())
-            }
-
             InstructionType::INC => {
-                //TODO: Implement
+                let address = operand_value.address.expect("INC Address is None");
+                let value = operand_value.value.expect("INC value is None");
+                let new_value = value.wrapping_add(1);
+                cpu.memory_write(address, new_value, memory)?;
+                Self::set_status_if_zero(new_value, cpu);
+                Self::set_status_if_negative(new_value, cpu);
                 Ok(())
             }
 
             InstructionType::INX => {
-                let value: u8 = cpu.x_register.get().wrapping_add(1);
-                cpu.x_register.set(value);
-
-                // set zero bit if the number read is 0
-                if value == 0 {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                } else {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, false);
-                }
-                // set negative bit to the value of the 7th bit
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::NegativeBit, (value as u8) > 127);
-
+                cpu.x_register.set(cpu.x_register.get().wrapping_add(1));
+                Self::set_status_if_zero(cpu.x_register.get(), cpu);
+                Self::set_status_if_negative(cpu.x_register.get(), cpu);
                 Ok(())
             }
 
             InstructionType::INY => {
-                let value: u8 = cpu.y_register.get().wrapping_add(1);
-                cpu.y_register.set(value);
+                cpu.y_register.set(cpu.y_register.get().wrapping_add(1));
+                Self::set_status_if_zero(cpu.y_register.get(), cpu);
+                Self::set_status_if_negative(cpu.y_register.get(), cpu);
+                Ok(())
+            }
 
-                // set zero bit if the number read is 0
-                if value == 0 {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                } else {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, false);
-                }
-                // set negative bit to the value of the 7th bit
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::NegativeBit, (value as u8) > 127);
+            InstructionType::DEC => {
+                let address = operand_value.address.expect("DEC Address is None");
+                let value = operand_value.value.expect("DEC value is None");
+                let new_value = value.wrapping_sub(1);
+                cpu.memory_write(address, new_value, memory)?;
+                Self::set_status_if_zero(new_value, cpu);
+                Self::set_status_if_negative(new_value, cpu);
+                Ok(())
+            }
 
+            InstructionType::DEX => {
+                cpu.x_register.set(cpu.x_register.get().wrapping_sub(1));
+                Self::set_status_if_zero(cpu.x_register.get(), cpu);
+                Self::set_status_if_negative(cpu.x_register.get(), cpu);
+                Ok(())
+            }
+
+            InstructionType::DEY => {
+                cpu.y_register.set(cpu.y_register.get().wrapping_sub(1));
+                Self::set_status_if_zero(cpu.y_register.get(), cpu);
+                Self::set_status_if_negative(cpu.y_register.get(), cpu);
                 Ok(())
             }
 
