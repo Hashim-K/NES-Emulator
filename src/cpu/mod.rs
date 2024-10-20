@@ -185,9 +185,9 @@ impl Cpu {
     }
 
     fn read_reset_vector(&mut self, memory: &mut Memory) -> Result<(), MainError> {
-        let lower_reset_byte = memory.get_memory_byte(0xfffc)?;
-        let upper_reset_byte = memory.get_memory_byte(0xfffd)?;
-        let reset_vector: u16 = ((upper_reset_byte as u16) << 8 | lower_reset_byte as u16); 
+        let lower_reset_byte = memory.read(0xfffc)?;
+        let upper_reset_byte = memory.read(0xfffd)?;
+        let reset_vector: u16 = ((upper_reset_byte as u16) << 8 | lower_reset_byte as u16);
         self.program_counter.set(reset_vector);
         Ok(())
     }
