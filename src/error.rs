@@ -24,6 +24,9 @@ pub enum MemoryError {
 pub enum MyTickError {
     #[error("MainError occured in one of the functions during a cpu tick")]
     MainError(#[from] MainError),
+
+    #[error("Memory error occured in the tick function")]
+    MemoryError(#[from] MemoryError),
 }
 
 #[derive(Debug, Error)]
