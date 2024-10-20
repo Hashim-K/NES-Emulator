@@ -49,6 +49,10 @@ impl StatusRegister {
         self.overflow_bit = (value & 1 << 6) != 0;
         self.negative_bit = (value & 1 << 7) != 0;
     }
+
+    pub(crate) fn get_carry(self) -> bool {
+        self.carry_bit
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]

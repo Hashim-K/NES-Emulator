@@ -1005,12 +1005,65 @@ impl Instruction {
             }
 
             InstructionType::ADC => {
-                //TODO: Implement
+                let acc = cpu.accumulator.get();
+                let op_value = operand_value.value.expect("Operand value for ADC is None");
+                let carry = u8::from(cpu.status_register.get_carry());
+                let result = acc.wrapping_add(op_value).wrapping_add(carry);
+                let did_carry =
+                    result < acc || (acc == 0 && carry == 1) || (result == 0xff && carry == 1);
+                let did_overflow = (acc > 127 && op_value > 127 && result < 128)
+                    || (acc < 128 && result < 128 && result > 127);
+                cpu.accumulator.set(result);
+
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
+
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, did_carry);
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::OverflowBit, did_overflow);
                 Ok(())
             }
 
+            // TODO implement decimal mode and carry
             InstructionType::SBC => {
-                //TODO: Implement
+                let acc = cpu.accumulator.get();
+                let op_value = operand_value.value.expect("Operand value for SBC is None");
+                let carry = u8::from(cpu.status_register.get_carry());
+                let result = acc.wrapping_sub(op_value).wrapping_sub(1 - carry);
+                let did_carry = false; // TODO
+
+                // Check if sign is wrong. This happens in the following cases:
+                // positive - negative results in negative
+                // negative - positive results in positive
+                let did_overflow = (acc ^ op_value) & (acc ^ result) & 0x80 != 0;
+                cpu.accumulator.set(result);
+
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
+
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, did_carry);
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::OverflowBit, did_overflow);
+                Ok(())
+            }
+
+            InstructionType::CMP | InstructionType::CPX | InstructionType::CPY => {
+                let reg = match self.instruction_type {
+                    InstructionType::CMP => cpu.accumulator.get(),
+                    InstructionType::CPX => cpu.x_register.get(),
+                    InstructionType::CPY => cpu.y_register.get(),
+                    _ => panic!(),
+                };
+                let value = operand_value
+                    .value
+                    .expect("Operand value for CMP/CPX/CPY is None");
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, reg >= value);
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::ZeroBit, reg == value);
+                Self::set_status_if_negative(reg.wrapping_sub(value), cpu);
                 Ok(())
             }
 
@@ -1103,21 +1156,6 @@ impl Instruction {
             }
 
             InstructionType::SEI => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::CMP => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::CPX => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::CPY => {
                 //TODO: Implement
                 Ok(())
             }
