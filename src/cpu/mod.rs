@@ -207,13 +207,13 @@ impl Cpu {
         Ok(value)
     }
 
-    fn read_reset_vector(&mut self, memory: &mut Memory) -> Result<(), MainError> {
-        let lower_reset_byte = memory.read(0xfffc)?;
-        let upper_reset_byte = memory.read(0xfffd)?;
-        let reset_vector: u16 = ((upper_reset_byte as u16) << 8 | lower_reset_byte as u16);
-        self.program_counter.set(reset_vector);
-        Ok(())
-    }
+    // fn read_reset_vector(&mut self, memory: &mut Memory) -> Result<(), MainError> {
+    //     let lower_reset_byte = memory.read(0xfffc)?;
+    //     let upper_reset_byte = memory.read(0xfffd)?;
+    //     let reset_vector: u16 = ((upper_reset_byte as u16) << 8 | lower_reset_byte as u16);
+    //     self.program_counter.set(reset_vector);
+    //     Ok(())
+    // }
 
     fn memory_read(&self, address: u16, memory: &mut Memory) -> Result<u8, MainError> {
         let memory_value = memory.read(address)?;
