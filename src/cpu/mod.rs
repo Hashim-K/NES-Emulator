@@ -16,6 +16,7 @@ struct OperandValue {
     address: Option<u16>,
 }
 
+#[derive(Debug)]
 pub struct Cpu {
     accumulator: CpuRegister,
     x_register: CpuRegister,
@@ -231,6 +232,8 @@ impl Cpu {
 
     pub fn tick(&mut self, memory: &mut Memory) -> Result<(), MyTickError> {
         // set the cpu to the startup state fi
+        // println!("the clock is ticking");
+        // print!("cpu: {self:?}");
         if !self.initialized {
             self.initialize_cpu(memory)?;
         }
@@ -247,17 +250,19 @@ impl Cpu {
                 self.interrupt_state = current_interrupt;
             }
         }
+        // println!("Polled for interrupts, checking ");
         // execute interrupt or opcode
         if self.current_cycle > self.instruction_cycle_count {
             self.current_cycle = 1;
 
             match self.interrupt_state {
                 InterruptState::NMI => {
+                    println!("Executing NMI");
                     self.push_pc_and_status_on_stack(memory)?;
-                    let nmi_lobit = memory.read(0xFFFA)?;
-                    let nmi_hibit = memory.read(0xFFFB)?;
-                    self.program_counter.set_lobit(nmi_lobit);
-                    self.program_counter.set_hibit(nmi_hibit);
+                    let nmi_lobyte = memory.read(0xFFFA)?;
+                    let nmi_hibyte = memory.read(0xFFFB)?;
+                    self.program_counter.set_lobyte(nmi_lobyte);
+                    self.program_counter.set_hibyte(nmi_hibyte);
 
                     self.instruction_cycle_count = 7;
                     self.interrupt_state = InterruptState::NormalOperation;
@@ -299,10 +304,10 @@ impl Cpu {
             let current_interrupt = self.poll_interrupts(memory, false);
             match current_interrupt {
                 InterruptState::NMI => {
-                    let nmi_lobit = memory.read(0xFFFA)?;
-                    let nmi_hibit = memory.read(0xFFFB)?;
-                    self.program_counter.set_lobit(nmi_lobit);
-                    self.program_counter.set_hibit(nmi_hibit);
+                    let nmi_lobyte = memory.read(0xFFFA)?;
+                    let nmi_hibyte = memory.read(0xFFFB)?;
+                    self.program_counter.set_lobyte(nmi_lobyte);
+                    self.program_counter.set_hibyte(nmi_hibyte);
 
                     self.instruction_cycle_count = 7;
                     self.interrupt_state = InterruptState::NormalOperation;
@@ -313,10 +318,10 @@ impl Cpu {
                         .status_register
                         .get_bit(StatusRegisterBit::InterruptBit)
                     {
-                        let nmi_lobit = memory.read(0xFFFE)?;
-                        let nmi_hibit = memory.read(0xFFFF)?;
-                        self.program_counter.set_lobit(nmi_lobit);
-                        self.program_counter.set_hibit(nmi_hibit);
+                        let nmi_lobyte = memory.read(0xFFFE)?;
+                        let nmi_hibyte = memory.read(0xFFFF)?;
+                        self.program_counter.set_lobyte(nmi_lobyte);
+                        self.program_counter.set_hibyte(nmi_hibyte);
 
                         self.instruction_cycle_count = 7;
                         self.interrupt_state = InterruptState::NormalOperation;
@@ -363,10 +368,13 @@ impl Cpu {
         let return_value: InterruptState;
         if self.nmi_line_triggered {
             return_value = InterruptState::NMI;
+            println!("Interrupt state NMI polled");
         } else if self.irq_line_triggered {
             return_value = InterruptState::IRQ;
+            println!("Interrupt state IRQ polled");
         } else {
             return_value = InterruptState::NormalOperation;
+            // println!("Interrupt state NormalOperation polled");
         }
         self.irq_line_triggered = false;
         self.nmi_line_triggered = false;
@@ -374,10 +382,12 @@ impl Cpu {
     }
 
     fn initialize_cpu(&mut self, memory: &mut Memory) -> Result<(), MemoryError> {
-        let nmi_lobit = memory.read(0xFFFC)?;
-        let nmi_hibit = memory.read(0xFFFD)?;
-        self.program_counter.set_lobit(nmi_lobit);
-        self.program_counter.set_hibit(nmi_hibit);
+        println!("intializing cpu");
+        let lobyte = memory.read(0xFFFC)?;
+        let hibyte = memory.read(0xFFFD)?;
+        self.program_counter.set_lobyte(lobyte);
+        self.program_counter.set_hibyte(hibyte);
+        // println!("program counter set to {}", self.program_counter.get());
         self.stack_pointer.set(0xFF);
 
         self.instruction_cycle_count = 7;

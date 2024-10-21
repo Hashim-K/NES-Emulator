@@ -89,6 +89,7 @@ impl CpuRegister {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct ProgramCounter {
     binary_value: u16,
 }
@@ -110,13 +111,12 @@ impl ProgramCounter {
         return (self.binary_value >> 8) as u8;
     }
 
-    pub(crate) fn set_lobit(&mut self, value: u8) {
-        self.binary_value = (self.binary_value - self.binary_value & 0x00FF) + value as u16;
+    pub(crate) fn set_lobyte(&mut self, value: u8) {
+        self.binary_value = (self.binary_value & 0xFF00) | value as u16;
     }
 
-    pub(crate) fn set_hibit(&mut self, value: u8) {
-        self.binary_value =
-            (self.binary_value - self.binary_value & 0xFF00) | ((value as u16) << 8);
+    pub(crate) fn set_hibyte(&mut self, value: u8) {
+        self.binary_value = (self.binary_value & 0x00FF) | ((value as u16) << 8);
     }
 
     pub(crate) fn increment(&mut self) -> () {
@@ -230,15 +230,20 @@ mod tests {
         pc.set(0xFFFF);
         assert_eq!(pc.get(), 0xFFFF);
 
-        pc.set(0x0000);
-        pc.set_hibit(0xFF);
-        assert_eq!(pc.get(), 0xFF00);
+        pc.set(0x1111);
+        pc.set_hibyte(0xFF);
+        assert_eq!(pc.get(), 0xFF11);
         assert_eq!(pc.get_hibyte(), 0xFF);
 
-        pc.set(0x0000);
-        pc.set_lobit(0xFF);
-        assert_eq!(pc.get(), 0x00FF);
+        pc.set(0x1111);
+        pc.set_lobyte(0xFF);
+        assert_eq!(pc.get(), 0x11FF);
         assert_eq!(pc.get_lobyte(), 0xFF);
+
+        pc.set_hibyte(0xFF);
+        assert_eq!(pc.get(), 0xFFFF);
+        pc.set_lobyte(0xFF);
+        assert_eq!(pc.get(), 65535);
     }
 
     #[test]
