@@ -133,8 +133,8 @@ impl Cartridge {
             0 => {
                 // check if amount of data is correct
                 if rom_bytes[16..].len()
-                    != (header.charactor_memory_size as u16 * 8192
-                        + header.program_rom_size as u16 * 16384) as usize
+                    != (header.charactor_memory_size as usize * 8192
+                        + header.program_rom_size as usize * 16384)
                 {
                     return Err(RomError::IncorrectDataSize);
                 }
