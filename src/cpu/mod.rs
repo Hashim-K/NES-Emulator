@@ -34,6 +34,8 @@ pub struct Cpu {
     nmi_line_triggered: bool,
     irq_line_triggered: bool,
     initialized: bool,
+    branch_success: bool,
+    page_crossing: bool,
 }
 
 impl Cpu {
@@ -56,8 +58,10 @@ impl Cpu {
             nmi_line_prev: false,
             nmi_line_current: false,
             nmi_line_triggered: false,
-            irq_line_triggered: true,
+            irq_line_triggered: false,
             initialized: false,
+            branch_success: false,
+            page_crossing: false,
         }
     }
 
@@ -287,7 +291,19 @@ impl Cpu {
                     self.instruction_cycle_count =
                         self.current_instruction.addressing_mode.length();
 
-                    self.interrupt_polling_cycle = self.instruction_cycle_count - 1;
+                    if self.page_crossing {
+                        self.instruction_cycle_count += 1;
+                        self.page_crossing = false;
+                    }
+
+                    // make sure the interrupts are polled before the second cycle of the conditional branch operations
+                    // it could still be wrong, i dont understand this part on nesdev
+                    self.interrupt_polling_cycle = self.instruction_cycle_count;
+
+                    if self.branch_success {
+                        self.instruction_cycle_count += 1;
+                        self.branch_success = false;
+                    }
 
                     if self.current_instruction.is_rmw() {
                         self.instruction_cycle_count -= 1;

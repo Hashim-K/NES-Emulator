@@ -829,6 +829,15 @@ impl Instruction {
             .set_bit(StatusRegisterBit::NegativeBit, value & (1 << 7) > 0);
     }
 
+    // Add u8 as twos complement i8 to u16
+    fn offset_memory_value(value: u16, offset: u8) -> u16 {
+        match offset & 0b1000_0000 {
+            0b1000_0000 => value - (offset & 0b0111_1111) as u16,
+            0b0000_0000 => value + offset as u16,
+            _ => 0xFFFF, // idk what else to put here
+        }
+    }
+
     pub fn execute(&self, cpu: &mut Cpu, memory: &mut Memory) -> Result<(), MainError> {
         let operand_value = cpu.get_operand_value(&self.addressing_mode, memory)?;
         match self.instruction_type {
@@ -1204,42 +1213,162 @@ impl Instruction {
             }
 
             InstructionType::BCC => {
-                //TODO: Implement
+                if !cpu.status_register.get_bit(StatusRegisterBit::CarryBit) {
+                    cpu.branch_success = true;
+                    let new_program_counter = Self::offset_memory_value(
+                        cpu.program_counter.get(),
+                        operand_value
+                            .value
+                            .expect("BCC branch instruction should have operand value"),
+                    );
+
+                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
+                        == 0x0100
+                    {
+                        cpu.page_crossing = true;
+                    }
+                    cpu.program_counter.set(new_program_counter);
+                }
                 Ok(())
             }
 
             InstructionType::BCS => {
-                //TODO: Implement
+                if cpu.status_register.get_bit(StatusRegisterBit::CarryBit) {
+                    cpu.branch_success = true;
+                    let new_program_counter = Self::offset_memory_value(
+                        cpu.program_counter.get(),
+                        operand_value
+                            .value
+                            .expect("BCC branch instruction should have operand value"),
+                    );
+
+                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
+                        == 0x0100
+                    {
+                        cpu.page_crossing = true;
+                    }
+                    cpu.program_counter.set(new_program_counter);
+                }
                 Ok(())
             }
 
             InstructionType::BEQ => {
-                //TODO: Implement
+                if cpu.status_register.get_bit(StatusRegisterBit::ZeroBit) {
+                    cpu.branch_success = true;
+                    let new_program_counter = Self::offset_memory_value(
+                        cpu.program_counter.get(),
+                        operand_value
+                            .value
+                            .expect("BCC branch instruction should have operand value"),
+                    );
+
+                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
+                        == 0x0100
+                    {
+                        cpu.page_crossing = true;
+                    }
+                    cpu.program_counter.set(new_program_counter);
+                }
                 Ok(())
             }
 
             InstructionType::BMI => {
-                //TODO: Implement
+                if cpu.status_register.get_bit(StatusRegisterBit::NegativeBit) {
+                    cpu.branch_success = true;
+                    let new_program_counter = Self::offset_memory_value(
+                        cpu.program_counter.get(),
+                        operand_value
+                            .value
+                            .expect("BCC branch instruction should have operand value"),
+                    );
+
+                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
+                        == 0x0100
+                    {
+                        cpu.page_crossing = true;
+                    }
+                    cpu.program_counter.set(new_program_counter);
+                }
                 Ok(())
             }
 
             InstructionType::BNE => {
-                //TODO: Implement
+                if !cpu.status_register.get_bit(StatusRegisterBit::ZeroBit) {
+                    cpu.branch_success = true;
+                    let new_program_counter = Self::offset_memory_value(
+                        cpu.program_counter.get(),
+                        operand_value
+                            .value
+                            .expect("BCC branch instruction should have operand value"),
+                    );
+
+                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
+                        == 0x0100
+                    {
+                        cpu.page_crossing = true;
+                    }
+                    cpu.program_counter.set(new_program_counter);
+                }
                 Ok(())
             }
 
             InstructionType::BPL => {
-                //TODO: Implement
+                if !cpu.status_register.get_bit(StatusRegisterBit::NegativeBit) {
+                    cpu.branch_success = true;
+                    let new_program_counter = Self::offset_memory_value(
+                        cpu.program_counter.get(),
+                        operand_value
+                            .value
+                            .expect("BCC branch instruction should have operand value"),
+                    );
+
+                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
+                        == 0x0100
+                    {
+                        cpu.page_crossing = true;
+                    }
+                    cpu.program_counter.set(new_program_counter);
+                }
                 Ok(())
             }
 
             InstructionType::BVC => {
-                //TODO: Implement
+                if !cpu.status_register.get_bit(StatusRegisterBit::OverflowBit) {
+                    cpu.branch_success = true;
+                    let new_program_counter = Self::offset_memory_value(
+                        cpu.program_counter.get(),
+                        operand_value
+                            .value
+                            .expect("BCC branch instruction should have operand value"),
+                    );
+
+                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
+                        == 0x0100
+                    {
+                        cpu.page_crossing = true;
+                    }
+                    cpu.program_counter.set(new_program_counter);
+                }
                 Ok(())
             }
 
             InstructionType::BVS => {
-                //TODO: Implement
+                if cpu.status_register.get_bit(StatusRegisterBit::OverflowBit) {
+                    cpu.branch_success = true;
+                    let new_program_counter = Self::offset_memory_value(
+                        cpu.program_counter.get(),
+                        operand_value
+                            .value
+                            .expect("BCC branch instruction should have operand value"),
+                    );
+
+                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
+                        == 0x0100
+                    {
+                        cpu.page_crossing = true;
+                    }
+                    cpu.program_counter.set(new_program_counter);
+                }
                 Ok(())
             }
 
@@ -1250,29 +1379,73 @@ impl Instruction {
             }
 
             InstructionType::JSR => {
-                //TODO: Implement
+                memory.write(
+                    cpu.stack_pointer.get() as u16 + 0x0100,
+                    cpu.program_counter.get_hibyte(),
+                )?;
+                cpu.stack_pointer.decrement();
+                memory.write(
+                    cpu.stack_pointer.get() as u16 + 0x0100,
+                    cpu.program_counter.get_lobyte(),
+                )?;
+                cpu.stack_pointer.decrement();
+                cpu.program_counter
+                    .set(operand_value.address.expect("Expected address for JMP"));
                 Ok(())
             }
 
             InstructionType::RTS => {
-                //TODO: Implement
+                cpu.stack_pointer.increment();
+                let lobyte = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                cpu.program_counter.set_lobyte(lobyte);
+
+                cpu.stack_pointer.increment();
+                let hibyte = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                cpu.program_counter.set_hibyte(hibyte);
                 Ok(())
             }
 
             InstructionType::BRK => {
-                //TODO: Implement
+                cpu.program_counter.increment();
+                memory.write(
+                    cpu.stack_pointer.get() as u16 + 0x0100,
+                    cpu.program_counter.get_hibyte(),
+                )?;
+                cpu.stack_pointer.decrement();
+                memory.write(
+                    cpu.stack_pointer.get() as u16 + 0x0100,
+                    cpu.program_counter.get_lobyte(),
+                )?;
+                cpu.stack_pointer.decrement();
+                memory.write(
+                    cpu.stack_pointer.get() as u16 + 0x0100,
+                    cpu.status_register.get(),
+                )?;
+                cpu.stack_pointer.decrement();
+
+                cpu.program_counter.set_lobyte(memory.read(0xFFFE)?);
+                cpu.program_counter.set_hibyte(memory.read(0xFFFF)?);
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::InterruptBit, true);
                 Ok(())
             }
 
             InstructionType::RTI => {
-                //TODO: Implement
+                cpu.stack_pointer.increment();
+                let status_register_value = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                cpu.status_register.set_from_stack(status_register_value);
+
+                cpu.stack_pointer.increment();
+                let lobyte = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                cpu.program_counter.set_lobyte(lobyte);
+
+                cpu.stack_pointer.increment();
+                let hibyte = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                cpu.program_counter.set_hibyte(hibyte);
                 Ok(())
             }
 
-            InstructionType::NOP => {
-                //TODO: Implement
-                Ok(())
-            }
+            InstructionType::NOP => Ok(()),
         }
     }
 
