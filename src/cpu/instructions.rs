@@ -1244,7 +1244,8 @@ impl Instruction {
             }
 
             InstructionType::JMP => {
-                //TODO: Implement
+                cpu.program_counter
+                    .set(operand_value.address.expect("Expected address for JMP"));
                 Ok(())
             }
 
