@@ -58,4 +58,11 @@ mod tests {
         let result = run_tests::<System>(TestSelector::NROM_TEST);
         assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
     }
+
+    #[ignore]
+    #[test]
+    fn test_official_instructions() {
+        let result = run_tests::<System>(TestSelector::OFFICIAL_INSTRS);
+        assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
+    }
 }
