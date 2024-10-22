@@ -829,13 +829,6 @@ impl Instruction {
             .set_bit(StatusRegisterBit::NegativeBit, value & (1 << 7) > 0);
     }
 
-    // Add u8 as twos complement i8 to u16
-    fn offset_memory_value(value: u16, offset: u8) -> u16 {
-        return value
-            .wrapping_add((offset & 0b0111_1111) as u16)
-            .wrapping_sub((offset & 0b1000_0000) as u16);
-    }
-
     pub fn execute(&self, cpu: &mut Cpu, memory: &mut Memory) -> Result<(), MainError> {
         let operand_value = cpu.get_operand_value(&self.addressing_mode, memory)?;
         match self.instruction_type {
@@ -917,8 +910,8 @@ impl Instruction {
 
             InstructionType::TXS => {
                 cpu.stack_pointer.set(cpu.x_register.get());
-                Self::set_status_if_zero(cpu.stack_pointer.get(), cpu);
-                Self::set_status_if_negative(cpu.stack_pointer.get(), cpu);
+                // Self::set_status_if_zero(cpu.stack_pointer.get(), cpu);
+                // Self::set_status_if_negative(cpu.stack_pointer.get(), cpu);
                 Ok(())
             }
 
@@ -964,14 +957,14 @@ impl Instruction {
             }
 
             InstructionType::INX => {
-                cpu.x_register.set(cpu.x_register.get().wrapping_add(1));
+                cpu.x_register.increment();
                 Self::set_status_if_zero(cpu.x_register.get(), cpu);
                 Self::set_status_if_negative(cpu.x_register.get(), cpu);
                 Ok(())
             }
 
             InstructionType::INY => {
-                cpu.y_register.set(cpu.y_register.get().wrapping_add(1));
+                cpu.y_register.increment();
                 Self::set_status_if_zero(cpu.y_register.get(), cpu);
                 Self::set_status_if_negative(cpu.y_register.get(), cpu);
                 Ok(())
@@ -988,14 +981,14 @@ impl Instruction {
             }
 
             InstructionType::DEX => {
-                cpu.x_register.set(cpu.x_register.get().wrapping_sub(1));
+                cpu.x_register.decrement();
                 Self::set_status_if_zero(cpu.x_register.get(), cpu);
                 Self::set_status_if_negative(cpu.x_register.get(), cpu);
                 Ok(())
             }
 
             InstructionType::DEY => {
-                cpu.y_register.set(cpu.y_register.get().wrapping_sub(1));
+                cpu.y_register.decrement();
                 Self::set_status_if_zero(cpu.y_register.get(), cpu);
                 Self::set_status_if_negative(cpu.y_register.get(), cpu);
                 Ok(())
@@ -1213,19 +1206,14 @@ impl Instruction {
             InstructionType::BCC => {
                 if !cpu.status_register.get_bit(StatusRegisterBit::CarryBit) {
                     cpu.branch_success = true;
-                    let new_program_counter = Self::offset_memory_value(
-                        cpu.program_counter.get(),
+                    cpu.program_counter.set(
                         operand_value
-                            .value
-                            .expect("BCC branch instruction should have operand value"),
+                            .address
+                            .expect("BCC instruction should recieve an address"),
                     );
-
-                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
-                        == 0x0100
-                    {
-                        cpu.page_crossing = true;
-                    }
-                    cpu.program_counter.set(new_program_counter);
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
                 }
                 Ok(())
             }
@@ -1233,19 +1221,14 @@ impl Instruction {
             InstructionType::BCS => {
                 if cpu.status_register.get_bit(StatusRegisterBit::CarryBit) {
                     cpu.branch_success = true;
-                    let new_program_counter = Self::offset_memory_value(
-                        cpu.program_counter.get(),
+                    cpu.program_counter.set(
                         operand_value
-                            .value
-                            .expect("BCC branch instruction should have operand value"),
+                            .address
+                            .expect("BCS instruction should recieve an address"),
                     );
-
-                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
-                        == 0x0100
-                    {
-                        cpu.page_crossing = true;
-                    }
-                    cpu.program_counter.set(new_program_counter);
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
                 }
                 Ok(())
             }
@@ -1253,19 +1236,14 @@ impl Instruction {
             InstructionType::BEQ => {
                 if cpu.status_register.get_bit(StatusRegisterBit::ZeroBit) {
                     cpu.branch_success = true;
-                    let new_program_counter = Self::offset_memory_value(
-                        cpu.program_counter.get(),
+                    cpu.program_counter.set(
                         operand_value
-                            .value
-                            .expect("BCC branch instruction should have operand value"),
+                            .address
+                            .expect("BEQ instruction should recieve an address"),
                     );
-
-                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
-                        == 0x0100
-                    {
-                        cpu.page_crossing = true;
-                    }
-                    cpu.program_counter.set(new_program_counter);
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
                 }
                 Ok(())
             }
@@ -1273,19 +1251,14 @@ impl Instruction {
             InstructionType::BMI => {
                 if cpu.status_register.get_bit(StatusRegisterBit::NegativeBit) {
                     cpu.branch_success = true;
-                    let new_program_counter = Self::offset_memory_value(
-                        cpu.program_counter.get(),
+                    cpu.program_counter.set(
                         operand_value
-                            .value
-                            .expect("BCC branch instruction should have operand value"),
+                            .address
+                            .expect("BMI instruction should recieve an address"),
                     );
-
-                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
-                        == 0x0100
-                    {
-                        cpu.page_crossing = true;
-                    }
-                    cpu.program_counter.set(new_program_counter);
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
                 }
                 Ok(())
             }
@@ -1293,19 +1266,14 @@ impl Instruction {
             InstructionType::BNE => {
                 if !cpu.status_register.get_bit(StatusRegisterBit::ZeroBit) {
                     cpu.branch_success = true;
-                    let new_program_counter = Self::offset_memory_value(
-                        cpu.program_counter.get(),
+                    cpu.program_counter.set(
                         operand_value
-                            .value
-                            .expect("BCC branch instruction should have operand value"),
+                            .address
+                            .expect("BNE instruction should recieve an address"),
                     );
-
-                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
-                        == 0x0100
-                    {
-                        cpu.page_crossing = true;
-                    }
-                    cpu.program_counter.set(new_program_counter);
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
                 }
                 Ok(())
             }
@@ -1313,19 +1281,14 @@ impl Instruction {
             InstructionType::BPL => {
                 if !cpu.status_register.get_bit(StatusRegisterBit::NegativeBit) {
                     cpu.branch_success = true;
-                    let new_program_counter = Self::offset_memory_value(
-                        cpu.program_counter.get(),
+                    cpu.program_counter.set(
                         operand_value
-                            .value
-                            .expect("BCC branch instruction should have operand value"),
+                            .address
+                            .expect("BPL instruction should recieve an address"),
                     );
-
-                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
-                        == 0x0100
-                    {
-                        cpu.page_crossing = true;
-                    }
-                    cpu.program_counter.set(new_program_counter);
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
                 }
                 Ok(())
             }
@@ -1333,19 +1296,14 @@ impl Instruction {
             InstructionType::BVC => {
                 if !cpu.status_register.get_bit(StatusRegisterBit::OverflowBit) {
                     cpu.branch_success = true;
-                    let new_program_counter = Self::offset_memory_value(
-                        cpu.program_counter.get(),
+                    cpu.program_counter.set(
                         operand_value
-                            .value
-                            .expect("BCC branch instruction should have operand value"),
+                            .address
+                            .expect("BVC instruction should recieve an address"),
                     );
-
-                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
-                        == 0x0100
-                    {
-                        cpu.page_crossing = true;
-                    }
-                    cpu.program_counter.set(new_program_counter);
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
                 }
                 Ok(())
             }
@@ -1353,19 +1311,14 @@ impl Instruction {
             InstructionType::BVS => {
                 if cpu.status_register.get_bit(StatusRegisterBit::OverflowBit) {
                     cpu.branch_success = true;
-                    let new_program_counter = Self::offset_memory_value(
-                        cpu.program_counter.get(),
+                    cpu.program_counter.set(
                         operand_value
-                            .value
-                            .expect("BCC branch instruction should have operand value"),
+                            .address
+                            .expect("BVS instruction should recieve an address"),
                     );
-
-                    if ((new_program_counter & 0x0100) ^ (cpu.program_counter.get() & 0x0100))
-                        == 0x0100
-                    {
-                        cpu.page_crossing = true;
-                    }
-                    cpu.program_counter.set(new_program_counter);
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
                 }
                 Ok(())
             }
