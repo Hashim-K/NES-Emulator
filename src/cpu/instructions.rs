@@ -858,18 +858,21 @@ impl Instruction {
 
             InstructionType::STA => {
                 let address: u16 = operand_value.address.expect("STA Address is None");
-                cpu.memory_write(address, cpu.accumulator.get(), memory)?;
+                // cpu.memory_write(address, cpu.accumulator.get(), memory)?;
+                memory.write(address, cpu.accumulator.get())?;
                 Ok(())
             }
             InstructionType::STX => {
                 let address: u16 = operand_value.address.expect("STX Address is None");
-                cpu.memory_write(address, cpu.x_register.get(), memory)?;
+                // cpu.memory_write(address, cpu.x_register.get(), memory)?;
+                memory.write(address, cpu.x_register.get())?;
                 Ok(())
             }
 
             InstructionType::STY => {
                 let address: u16 = operand_value.address.expect("STY Address is None");
-                cpu.memory_write(address, cpu.y_register.get(), memory)?;
+                // cpu.memory_write(address, cpu.y_register.get(), memory)?;
+                memory.write(address, cpu.y_register.get())?;
                 Ok(())
             }
 
@@ -950,7 +953,8 @@ impl Instruction {
                 let address = operand_value.address.expect("INC Address is None");
                 let value = operand_value.value.expect("INC value is None");
                 let new_value = value.wrapping_add(1);
-                cpu.memory_write(address, new_value, memory)?;
+                // cpu.memory_write(address, new_value, memory)?;
+                memory.write(address, new_value)?;
                 Self::set_status_if_zero(new_value, cpu);
                 Self::set_status_if_negative(new_value, cpu);
                 Ok(())
@@ -960,6 +964,7 @@ impl Instruction {
                 cpu.x_register.increment();
                 Self::set_status_if_zero(cpu.x_register.get(), cpu);
                 Self::set_status_if_negative(cpu.x_register.get(), cpu);
+                // println!("{cpu:?}");
                 Ok(())
             }
 
@@ -974,7 +979,8 @@ impl Instruction {
                 let address = operand_value.address.expect("DEC Address is None");
                 let value = operand_value.value.expect("DEC value is None");
                 let new_value = value.wrapping_sub(1);
-                cpu.memory_write(address, new_value, memory)?;
+                // cpu.memory_write(address, new_value, memory)?;
+                memory.write(address, new_value)?;
                 Self::set_status_if_zero(new_value, cpu);
                 Self::set_status_if_negative(new_value, cpu);
                 Ok(())
@@ -1275,6 +1281,7 @@ impl Instruction {
                     cpu.branch_success = false;
                     cpu.page_crossing = false;
                 }
+                // println!("branching result: {}", cpu.branch_success);
                 Ok(())
             }
 
