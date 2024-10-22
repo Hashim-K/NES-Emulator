@@ -834,7 +834,7 @@ impl Instruction {
         match self.instruction_type {
             InstructionType::LDA => {
                 let value = operand_value.value.expect("LDA operand value is None");
-                cpu.x_register.set(value);
+                cpu.accumulator.set(value);
                 Self::set_status_if_zero(value, cpu);
                 Self::set_status_if_negative(value, cpu);
                 Ok(())
