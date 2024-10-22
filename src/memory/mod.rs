@@ -83,6 +83,19 @@ impl Memory {
     }
 }
 
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+pub enum ProgramBankMode{
+    Fullswitch,
+    Fixfirst,
+    Fixlast,
+}
+
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+pub enum CharacterBankMode{
+    Fullswitch,
+    Halfswitch,
+}
+
 #[derive(Debug, PartialEq)]
 pub struct RomHeader {
     mirroring: Mirroring,
@@ -100,6 +113,11 @@ pub struct Cartridge {
     header: RomHeader,
     prg_data: Vec<u8>,
     chr_data: Vec<u8>,
+    prg_bank: u8,
+    chr_bank_0: u8,
+    chr_bank_1: u8,
+    prg_bank_mode: ProgramBankMode,
+    chr_bank_mode: CharacterBankMode,
     pgr_ram: [u8; 8192], // 8 KiB of program ram
 }
 
@@ -131,52 +149,117 @@ impl Cartridge {
 
     fn new(rom_bytes: &[u8]) -> Result<Cartridge, RomError> {
         let header = Self::parse_header(rom_bytes)?;
-        println!("{:?}", header.program_rom_size);
-        println!("{:?}", header.charactor_memory_size);
-        match header.mapper_number {
-            0 => {
-                // check if amount of data is correct
-                if rom_bytes[16..].len()
-                    != (header.charactor_memory_size as usize * 8192
-                        + header.program_rom_size as usize * 16384)
-                {
-                    return Err(RomError::IncorrectDataSize);
-                }
-                let mut cartridge_prg_rom: Vec<u8> = rom_bytes[16..16400].to_vec();
-                let mut Cartridge_chr_rom: Vec<u8> = rom_bytes[16400..].to_vec();
-                if header.charactor_memory_size != 2 {
-                    cartridge_prg_rom = [cartridge_prg_rom, rom_bytes[16..16400].to_vec()].concat();
-                }
-                Ok(Cartridge {
-                    header,
-                    prg_data: cartridge_prg_rom,
-                    chr_data: Cartridge_chr_rom,
-                    // pgr ram needs to mirror itself to fill 8kib
-                    pgr_ram: [0; 8192],
-                })
-            }
-            a => Err(RomError::UnknownMapper(a)),
+        let mut total_length: u16 = header.charactor_memory_size as u16 * 8192 + header.program_rom_size as u16 * 16384;
+        if header.trainer{total_length += 512}
+        if rom_bytes[16..].len() != total_length as usize
+        {
+            return Err(RomError::IncorrectDataSize);
         }
+        let prg_rom_start_index: usize = 16 + (header.trainer as usize) * 512 as usize;
+        let prg_rom_end_index: usize = 16 + (header.trainer as usize) * 512 + (header.program_rom_size as usize) * 16384;
+        let mut cartridge_prg_rom: Vec<u8> = rom_bytes[prg_rom_start_index..prg_rom_end_index].to_vec();
+        let cartridge_chr_rom: Vec<u8> = rom_bytes[(prg_rom_end_index+1)..].to_vec();
+        if header.charactor_memory_size != 2 {
+            cartridge_prg_rom = [cartridge_prg_rom, rom_bytes[prg_rom_start_index..prg_rom_end_index].to_vec()].concat();
+        }
+        Ok(Cartridge {
+            header,
+            prg_data: cartridge_prg_rom,
+            chr_data: cartridge_chr_rom,
+            prg_bank: 1,
+            chr_bank_0: 1,
+            chr_bank_1: 2,
+            prg_bank_mode: ProgramBankMode::Fixlast,
+            chr_bank_mode: CharacterBankMode::Fullswitch,
+            // pgr ram needs to mirror itself to fill 8kib
+            pgr_ram: [0; 8192],
+        })
         // TODO: implement error handling
     }
 
     fn write(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
-        match address {
-            0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
-            0x8000..0xc000 => self.prg_data[(address - 0x8000) as usize] = value, // first 16 KiB of prg rom
-            0xc000.. => self.prg_data[(address - 0xc000 + 0x4000) as usize] = value, // last 16 KiB of prg rom
-            _ => return Err(MemoryError::UnknownAddress),
+        match self.header.mapper_number {
+            0 => {
+                match address {
+                    0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
+                    0x8000..0xc000 => self.prg_data[(address - 0x8000) as usize] = value, // first 16 KiB of prg rom
+                    0xc000.. => self.prg_data[(address - 0xc000 + 0x4000) as usize] = value, // last 16 KiB of prg rom
+                    _ => return Err(MemoryError::UnknownAddress),
+                }
+            }
+            1 => {
+                match self.prg_bank_mode {
+                    ProgramBankMode::Fullswitch => {
+                        let banknr = self.prg_bank >> 1;
+                        match address {
+                            0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
+                            0x8000.. => self.prg_data[(address - 0x8000 + ((banknr - 1) as u16) * 16384) as usize] = value, // switch in 32kb blocks
+                            _ => return Err(MemoryError::UnknownAddress),
+                        }
+                    }
+                    ProgramBankMode::Fixfirst => {
+                        match address {
+                            0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
+                            0x8000..0xc000 => self.prg_data[(address - 0x8000) as usize] = value, // fix first bank to 0x8000
+                            0xc000.. => self.prg_data[(address - 0xc000 + 0x4000 + ((self.prg_bank - 1) as u16) * 16384) as usize] = value, // make 0x8000 - 0xc000 switchable
+                            _ => return Err(MemoryError::UnknownAddress),
+                        }
+                    }
+                    ProgramBankMode::Fixlast => {
+                        match address {
+                            0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
+                            0x8000..0xc000 => self.prg_data[(address - 0x8000 + ((self.prg_bank - 1) as u16) * 16384) as usize] = value, // make 0x8000 - 0xc000 switchable
+                            0xc000.. => self.prg_data[(address - 0xc000 + 0x4000 + (self.header.program_rom_size as u16) * 16384) as usize] = value, // Fix last bank to 0xc000
+                            _ => return Err(MemoryError::UnknownAddress),
+                        }
+                    }
+                }
+            }
+            a => Err(RomError::UnknownMapper(a))?,
         }
 
         Ok(())
     }
 
     fn read(&self, address: u16) -> Result<u8, RomError> {
-        match address {
-            0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
-            0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000) as usize]), // first 16 KiB of prg rom
-            0xc000.. => Ok(self.prg_data[(address - 0xc000 + 0x4000) as usize]), // last 16 KiB of prg rom
-            _ => Err(RomError::UnknownAddress),
+        match self.header.mapper_number {
+            0 => {
+                match address {
+                    0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
+                    0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000) as usize]), // first 16 KiB of prg rom
+                    0xc000.. => Ok(self.prg_data[(address - 0xc000 + 0x4000) as usize]), // last 16 KiB of prg rom
+                    _ => return Err(RomError::UnknownAddress),
+                }
+            }
+            1 => {
+                match self.prg_bank_mode {
+                    ProgramBankMode::Fullswitch => {
+                        let banknr = self.prg_bank >> 1;
+                        match address {
+                            0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
+                            0x8000.. => Ok(self.prg_data[(address - 0x8000 + ((banknr - 1) as u16) * 16384) as usize]), // switch in 32kb blocks
+                            _ => return Err(RomError::UnknownAddress),
+                        }
+                    }
+                    ProgramBankMode::Fixfirst => {
+                        match address {
+                            0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
+                            0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000) as usize]), // fix first bank to 0x8000
+                            0xc000.. => Ok(self.prg_data[(address - 0xc000 + 0x4000 + ((self.prg_bank - 1) as u16) * 16384) as usize]), // make 0x8000 - 0xc000 switchable
+                            _ => return Err(RomError::UnknownAddress),
+                        }
+                    }
+                    ProgramBankMode::Fixlast => {
+                        match address {
+                            0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
+                            0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000 + ((self.prg_bank - 1) as u16) * 16384) as usize]), // make 0x8000 - 0xc000 switchable
+                            0xc000.. => Ok(self.prg_data[(address - 0xc000 + 0x4000 + (self.header.program_rom_size as u16) * 16384) as usize]), // Fix last bank to 0xc000
+                            _ => return Err(RomError::UnknownAddress),
+                        }
+                    }
+                }
+            }
+            a => Err(RomError::UnknownMapper(a))?,
         }
     }
 }
@@ -216,6 +299,11 @@ fn test_new_cartridge() {
         header: expected_header,
         prg_data: ROM_NROM_TEST[16..].to_vec(),
         chr_data: ROM_NROM_TEST[16..].to_vec(),
+        prg_bank: 1,
+        chr_bank_0: 1,
+        chr_bank_1: 2,
+        chr_bank_mode: CharacterBankMode::Fullswitch,
+        prg_bank_mode: ProgramBankMode::Fullswitch,
         pgr_ram: [0; 8192],
     };
     // expect file with exact amount of bytes as specified by the header to work (ROM_NROM_TEST length = 24592)
