@@ -51,15 +51,15 @@ impl AddressingMode {
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum InstructionType {
-    //888      8888888888  .d8888b.         d8888 888
-    //888      888        d88P  Y88b       d88888 888
-    //888      888        888    888      d88P888 888
-    //888      8888888    888            d88P 888 888
-    //888      888        888  88888    d88P  888 888
-    //888      888        888    888   d88P   888 888
-    //888      888        Y88b  d88P  d8888888888 888
-    //88888888 8888888888  "Y8888P88 d88P     888 88888888
 
+    // ooooo        oooooooooooo   .oooooo.          .o.       ooooo        
+    // `888'        `888'     `8  d8P'  `Y8b        .888.      `888'        
+    //  888          888         888               .8"888.      888         
+    //  888          888oooo8    888              .8' `888.     888         
+    //  888          888    "    888     ooooo   .88ooo8888.    888         
+    //  888       o  888       o `88.    .88'   .8'     `888.   888       o 
+    // o888ooooood8 o888ooooood8  `Y8bood8P'   o88o     o8888o o888ooooood8
+                                                                                         
     //Transfer Instructions
     LDA, // Load Accumulator
     LDX, // Load X Register
@@ -139,6 +139,36 @@ pub enum InstructionType {
     //Miscellaneous Instructions
     BIT, // Bit Test
     NOP, // No Operation
+    
+    // ooooo ooooo        ooooo        oooooooooooo   .oooooo.          .o.       ooooo        
+    // `888' `888'        `888'        `888'     `8  d8P'  `Y8b        .888.      `888'        
+    //  888   888          888          888         888               .8"888.      888         
+    //  888   888          888          888oooo8    888              .8' `888.     888         
+    //  888   888          888          888    "    888     ooooo   .88ooo8888.    888         
+    //  888   888       o  888       o  888       o `88.    .88'   .8'     `888.   888       o 
+    // o888o o888ooooood8 o888ooooood8 o888ooooood8  `Y8bood8P'   o88o     o8888o o888ooooood8 
+
+    ALR, // A AND operand, 0 -> [76543210] -> C
+    ANC, // A AND operand, bit(7) -> C
+    ANE, // (A OR CONST) AND X AND operand -> A
+    ARR, // A AND operand, C -> [76543210] -> C
+    DCP, // Decrements the operand and then compares the result to the accumulator.
+    ISC, // INC oper + SBC operand
+    LAS, // M -> A, & SP -> X
+    LAX, // M -> A -> X
+    LXA, // (A OR CONST) AND oper -> A -> X
+    RLA, // M = C <- [76543210] <- C, A AND M -> A
+    RRA, // M = C -> [76543210] -> C, A + M + C -> A, C
+    SAX, // A AND X -> M
+    SBX, // (A AND X) - oper -> X
+    SHA, // A AND X AND (H+1) -> M
+    SHX, // X AND (HH+1) -> M
+    SHY, // Y AND (HH+1) -> M
+    SLO, // M = C <- [76543210] <- 0, A OR M -> A
+    SRE, // M = 0 -> [76543210] -> C, A EOR M -> A
+    TAS, // A AND X -> SP, A AND X AND (H+1) -> M
+    USBC, // A - M - C̅ -> A
+    JAM // These instructions freeze the CPU.
 }
 
 impl Instruction {
@@ -808,6 +838,527 @@ impl Instruction {
             0x8C => Ok(Instruction {
                 instruction_type: InstructionType::STY,
                 addressing_mode: AddressingMode::Absolute,
+            }),
+
+            //ILLEGAL INSTUCTIONS
+            0x80 => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::Immediate,
+            }),
+
+            0x02 => Ok(Instruction {
+                instruction_type: InstructionType::JAM,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0x12 => Ok(Instruction {
+                instruction_type: InstructionType::JAM,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0x22 => Ok(Instruction {
+                instruction_type: InstructionType::JAM,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0x32 => Ok(Instruction {
+                instruction_type: InstructionType::JAM,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0x42 => Ok(Instruction {
+                instruction_type: InstructionType::JAM,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0x52 => Ok(Instruction {
+                instruction_type: InstructionType::JAM,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0x62 => Ok(Instruction {
+                instruction_type: InstructionType::JAM,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0x72 => Ok(Instruction {
+                instruction_type: InstructionType::JAM,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0x82 => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::Immediate,
+            }),
+
+            0x92 => Ok(Instruction {
+                instruction_type: InstructionType::JAM,
+                addressing_mode: AddressingMode::Immediate,
+            }),
+
+            0xB2 => Ok(Instruction {
+                instruction_type: InstructionType::JAM,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0xC2 => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0xD2 => Ok(Instruction {
+                instruction_type: InstructionType::JAM,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0xE2 => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0xF2 => Ok(Instruction {
+                instruction_type: InstructionType::JAM,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0x03 => Ok(Instruction {
+                instruction_type: InstructionType::SLO,
+                addressing_mode: AddressingMode::IndirectX,
+            }),
+
+            0x13 => Ok(Instruction {
+                instruction_type: InstructionType::SLO,
+                addressing_mode: AddressingMode::IndirectY,
+            }),
+
+            0x23 => Ok(Instruction {
+                instruction_type: InstructionType::RLA,
+                addressing_mode: AddressingMode::IndirectX,
+            }),
+
+            0x33 => Ok(Instruction {
+                instruction_type: InstructionType::RLA,
+                addressing_mode: AddressingMode::IndirectY,
+            }),
+
+            0x43 => Ok(Instruction {
+                instruction_type: InstructionType::SRE,
+                addressing_mode: AddressingMode::IndirectX,
+            }),
+
+            0x53 => Ok(Instruction {
+                instruction_type: InstructionType::SRE,
+                addressing_mode: AddressingMode::IndirectY,
+            }),
+
+            0x63 => Ok(Instruction {
+                instruction_type: InstructionType::RRA,
+                addressing_mode: AddressingMode::IndirectX,
+            }),
+
+            0x73 => Ok(Instruction {
+                instruction_type: InstructionType::RRA,
+                addressing_mode: AddressingMode::IndirectY,
+            }),
+
+            0x83 => Ok(Instruction {
+                instruction_type: InstructionType::SAX,
+                addressing_mode: AddressingMode::IndirectX,
+            }),
+
+            0x93 => Ok(Instruction {
+                instruction_type: InstructionType::SHA,
+                addressing_mode: AddressingMode::IndirectY,
+            }),
+
+            0xA3 => Ok(Instruction {
+                instruction_type: InstructionType::LAX,
+                addressing_mode: AddressingMode::IndirectX,
+            }),
+
+            0xB3 => Ok(Instruction {
+                instruction_type: InstructionType::LAX,
+                addressing_mode: AddressingMode::IndirectY,
+            }),
+
+            0xC3 => Ok(Instruction {
+                instruction_type: InstructionType::DCP,
+                addressing_mode: AddressingMode::IndirectX,
+            }),
+
+            0xD3 => Ok(Instruction {
+                instruction_type: InstructionType::DCP,
+                addressing_mode: AddressingMode::IndirectY,
+            }),
+
+            0xE3 => Ok(Instruction {
+                instruction_type: InstructionType::ISC,
+                addressing_mode: AddressingMode::IndirectX,
+            }),
+
+            0xF3 => Ok(Instruction {
+                instruction_type: InstructionType::ISC,
+                addressing_mode: AddressingMode::IndirectY,
+            }),
+
+            0x04 => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::ZeroPage,
+            }),
+
+            0x14 => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::ZeroPageX,
+            }),
+
+            0x34 => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::ZeroPageX,
+            }),
+
+            0x44 => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::ZeroPage,
+            }),
+
+            0x54 => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::ZeroPageX,
+            }),
+
+            0x64 => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::ZeroPage,
+            }),
+
+            0x74 => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::ZeroPageX,
+            }),
+
+            0xD4 => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::ZeroPageX,
+            }),
+
+            0xF4 => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::ZeroPageX,
+            }),
+
+            0x07 => Ok(Instruction {
+                instruction_type: InstructionType::SLO,
+                addressing_mode: AddressingMode::ZeroPage,
+            }),
+
+            0x17 => Ok(Instruction {
+                instruction_type: InstructionType::SLO,
+                addressing_mode: AddressingMode::ZeroPageX,
+            }),
+
+            0x27 => Ok(Instruction {
+                instruction_type: InstructionType::RLA,
+                addressing_mode: AddressingMode::ZeroPage,
+            }),
+
+            0x37 => Ok(Instruction {
+                instruction_type: InstructionType::RLA,
+                addressing_mode: AddressingMode::ZeroPageX,
+            }),
+
+            0x47 => Ok(Instruction {
+                instruction_type: InstructionType::SRE,
+                addressing_mode: AddressingMode::ZeroPage,
+            }),
+
+            0x57 => Ok(Instruction {
+                instruction_type: InstructionType::SRE,
+                addressing_mode: AddressingMode::ZeroPageX,
+            }),
+
+            0x67 => Ok(Instruction {
+                instruction_type: InstructionType::RRA,
+                addressing_mode: AddressingMode::ZeroPage,
+            }),
+
+            0x77 => Ok(Instruction {
+                instruction_type: InstructionType::RRA,
+                addressing_mode: AddressingMode::ZeroPageX,
+            }),
+
+            0x87 => Ok(Instruction {
+                instruction_type: InstructionType::SAX,
+                addressing_mode: AddressingMode::ZeroPage,
+            }),
+
+            0x97 => Ok(Instruction {
+                instruction_type: InstructionType::SAX,
+                addressing_mode: AddressingMode::ZeroPageY,
+            }),
+
+            0xA7 => Ok(Instruction {
+                instruction_type: InstructionType::LAX,
+                addressing_mode: AddressingMode::ZeroPage,
+            }),
+
+            0xB7 => Ok(Instruction {
+                instruction_type: InstructionType::LAX,
+                addressing_mode: AddressingMode::ZeroPageY,
+            }),
+
+            0xC7 => Ok(Instruction {
+                instruction_type: InstructionType::DCP,
+                addressing_mode: AddressingMode::ZeroPage,
+            }),
+
+            0xD7 => Ok(Instruction {
+                instruction_type: InstructionType::DCP,
+                addressing_mode: AddressingMode::ZeroPageX,
+            }),
+
+            0xE7 => Ok(Instruction {
+                instruction_type: InstructionType::ISC,
+                addressing_mode: AddressingMode::ZeroPage,
+            }),
+
+            0xF7 => Ok(Instruction {
+                instruction_type: InstructionType::ISC,
+                addressing_mode: AddressingMode::ZeroPageX,
+            }),
+
+            0x1A => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0x3A => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0x5A => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0x7A => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0xDA => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0xFA => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::Implied,
+            }),
+
+            0x0B => Ok(Instruction {
+                instruction_type: InstructionType::ANC,
+                addressing_mode: AddressingMode::Immediate,
+            }),
+
+            0x1B => Ok(Instruction {
+                instruction_type: InstructionType::SLO,
+                addressing_mode: AddressingMode::AbsoluteY,
+            }),
+
+            0x2B => Ok(Instruction {
+                instruction_type: InstructionType::ANC,
+                addressing_mode: AddressingMode::Immediate,
+            }),
+
+            0x3B => Ok(Instruction {
+                instruction_type: InstructionType::RLA,
+                addressing_mode: AddressingMode::AbsoluteY,
+            }),
+
+            0x4B => Ok(Instruction {
+                instruction_type: InstructionType::ALR,
+                addressing_mode: AddressingMode::Immediate,
+            }),
+
+            0x5B => Ok(Instruction {
+                instruction_type: InstructionType::SRE,
+                addressing_mode: AddressingMode::AbsoluteY,
+            }),
+
+            0x6B => Ok(Instruction {
+                instruction_type: InstructionType::ARR,
+                addressing_mode: AddressingMode::Immediate,
+            }),
+
+            0x7B => Ok(Instruction {
+                instruction_type: InstructionType::RRA,
+                addressing_mode: AddressingMode::AbsoluteY,
+            }),
+
+            0x8B => Ok(Instruction {
+                instruction_type: InstructionType::ANE,
+                addressing_mode: AddressingMode::Immediate,
+            }),
+
+            0x9B => Ok(Instruction {
+                instruction_type: InstructionType::TAS,
+                addressing_mode: AddressingMode::AbsoluteY,
+            }),
+
+            0xAB => Ok(Instruction {
+                instruction_type: InstructionType::LXA,
+                addressing_mode: AddressingMode::Immediate,
+            }),
+
+            0xBB => Ok(Instruction {
+                instruction_type: InstructionType::LAS,
+                addressing_mode: AddressingMode::AbsoluteY,
+            }),
+
+            0xCB => Ok(Instruction {
+                instruction_type: InstructionType::SBX,
+                addressing_mode: AddressingMode::Immediate,
+            }),
+
+            0xDB => Ok(Instruction {
+                instruction_type: InstructionType::DCP,
+                addressing_mode: AddressingMode::AbsoluteY,
+            }),
+
+            0xEB => Ok(Instruction {
+                instruction_type: InstructionType::USBC,
+                addressing_mode: AddressingMode::Immediate,
+            }),
+
+            0xFB => Ok(Instruction {
+                instruction_type: InstructionType::ISC,
+                addressing_mode: AddressingMode::AbsoluteY,
+            }),
+
+            0x0C => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::Absolute,
+            }),
+
+            0x1C => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::AbsoluteX,
+            }),
+
+            0x3C => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::AbsoluteX,
+            }),
+
+            0x5C => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::AbsoluteX,
+            }),
+
+            0x7C => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::AbsoluteX,
+            }),
+
+            0x9C => Ok(Instruction {
+                instruction_type: InstructionType::SHY,
+                addressing_mode: AddressingMode::AbsoluteX,
+            }),
+
+            0xDC => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::AbsoluteX,
+            }),
+
+            0xFC => Ok(Instruction {
+                instruction_type: InstructionType::NOP,
+                addressing_mode: AddressingMode::AbsoluteX,
+            }),
+
+            0x9E => Ok(Instruction {
+                instruction_type: InstructionType::SHX,
+                addressing_mode: AddressingMode::AbsoluteY,
+            }),
+
+            0x0F => Ok(Instruction {
+                instruction_type: InstructionType::SLO,
+                addressing_mode: AddressingMode::Absolute,
+            }),
+
+            0x1F => Ok(Instruction {
+                instruction_type: InstructionType::SLO,
+                addressing_mode: AddressingMode::AbsoluteX,
+            }),
+
+            0x2F => Ok(Instruction {
+                instruction_type: InstructionType::RLA,
+                addressing_mode: AddressingMode::Absolute,
+            }),
+
+            0x3F => Ok(Instruction {
+                instruction_type: InstructionType::RLA,
+                addressing_mode: AddressingMode::AbsoluteX,
+            }),
+
+            0x4F => Ok(Instruction {
+                instruction_type: InstructionType::SRE,
+                addressing_mode: AddressingMode::Absolute,
+            }),
+
+            0x5F => Ok(Instruction {
+                instruction_type: InstructionType::SRE,
+                addressing_mode: AddressingMode::AbsoluteX,
+            }),
+
+            0x6F => Ok(Instruction {
+                instruction_type: InstructionType::RRA,
+                addressing_mode: AddressingMode::Absolute,
+            }),
+
+            0x7F => Ok(Instruction {
+                instruction_type: InstructionType::RRA,
+                addressing_mode: AddressingMode::AbsoluteX,
+            }),
+
+            0x8F => Ok(Instruction {
+                instruction_type: InstructionType::SAX,
+                addressing_mode: AddressingMode::Absolute,
+            }),
+
+            0x9F => Ok(Instruction {
+                instruction_type: InstructionType::SHA,
+                addressing_mode: AddressingMode::AbsoluteY,
+            }),
+
+            0xAF => Ok(Instruction {
+                instruction_type: InstructionType::LAX,
+                addressing_mode: AddressingMode::Absolute,
+            }),
+
+            0xBF => Ok(Instruction {
+                instruction_type: InstructionType::LAX,
+                addressing_mode: AddressingMode::AbsoluteY,
+            }),
+
+            0xCF => Ok(Instruction {
+                instruction_type: InstructionType::DCP,
+                addressing_mode: AddressingMode::Absolute,
+            }),
+
+            0xDF => Ok(Instruction {
+                instruction_type: InstructionType::DCP,
+                addressing_mode: AddressingMode::AbsoluteX,
+            }),
+
+            0xEF => Ok(Instruction {
+                instruction_type: InstructionType::ISC,
+                addressing_mode: AddressingMode::Absolute,
+            }),
+
+            0xFF => Ok(Instruction {
+                instruction_type: InstructionType::ISC,
+                addressing_mode: AddressingMode::AbsoluteX,
             }),
 
             //UNKNOWN INSTRUCTION
