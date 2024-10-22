@@ -831,11 +831,9 @@ impl Instruction {
 
     // Add u8 as twos complement i8 to u16
     fn offset_memory_value(value: u16, offset: u8) -> u16 {
-        match offset & 0b1000_0000 {
-            0b1000_0000 => value - (offset & 0b0111_1111) as u16,
-            0b0000_0000 => value + offset as u16,
-            _ => 0xFFFF, // idk what else to put here
-        }
+        return value
+            .wrapping_add((offset & 0b0111_1111) as u16)
+            .wrapping_sub((offset & 0b1000_0000) as u16);
     }
 
     pub fn execute(&self, cpu: &mut Cpu, memory: &mut Memory) -> Result<(), MainError> {
