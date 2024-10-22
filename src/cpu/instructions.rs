@@ -840,7 +840,6 @@ impl Instruction {
                 Ok(())
             }
 
-            // test instructions
             InstructionType::LDX => {
                 let value = operand_value.value.expect("LDX operand value is None");
                 cpu.x_register.set(value);
@@ -1274,6 +1273,19 @@ impl Instruction {
                 //TODO: Implement
                 Ok(())
             }
+        }
+    }
+
+    // Return true if instruction is Read-Modify-Write
+    pub fn is_rmw(&self) -> bool {
+        match self.instruction_type {
+            InstructionType::ASL
+            | InstructionType::DEC
+            | InstructionType::INC
+            | InstructionType::LSR
+            | InstructionType::ROL
+            | InstructionType::ROR => true,
+            _ => false,
         }
     }
 }
