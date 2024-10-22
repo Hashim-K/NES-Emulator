@@ -1187,19 +1187,19 @@ impl Instruction {
 
             InstructionType::SEC => {
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, false);
+                    .set_bit(StatusRegisterBit::CarryBit, true);
                 Ok(())
             }
 
             InstructionType::SED => {
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::DecimalBit, false);
+                    .set_bit(StatusRegisterBit::DecimalBit, true);
                 Ok(())
             }
 
             InstructionType::SEI => {
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::InterruptBit, false);
+                    .set_bit(StatusRegisterBit::InterruptBit, true);
                 Ok(())
             }
 
