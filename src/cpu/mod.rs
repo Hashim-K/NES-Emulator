@@ -234,10 +234,4 @@ impl Cpu {
         Ok(())
     }
 
-    pub fn handle_interrupts(&mut self, memory: &mut Memory) -> Result<(), MainError> {
-        // if self.irq {}
-        // if self.nmi {}
-        // if self.res {}
-        Ok(())
-    }
 }
