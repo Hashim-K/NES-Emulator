@@ -7,7 +7,6 @@ use tudelft_nes_test::TestableCpu;
 pub struct System {
     memory: Memory,
     cpu: Cpu,
-    ppu: Ppu,
 }
 
 /// See docs of `Cpu` for explanations of each function
@@ -36,11 +35,10 @@ impl TestableCpu for System {
     type GetCpuError = MyGetCpuError;
 
     fn get_cpu(_rom: &[u8]) -> Result<Self, MyGetCpuError> {
-        let memory = Memory::new(_rom)?;
-        let cpu = Cpu::new();
-        let ppu = Ppu::new(memory.get_mirroring());
-
-        return Ok(System { memory, cpu, ppu });
+        Ok(System {
+            memory: Memory::new(_rom)?,
+            cpu: Cpu::new(),
+        })
     }
 
     fn set_program_counter(&mut self, _value: u16) {
