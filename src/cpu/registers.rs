@@ -19,7 +19,7 @@ pub(crate) struct StatusRegister {
 }
 
 impl StatusRegister {
-    pub(crate) fn set_bit(&mut self, bit: StatusRegisterBit, value: bool) -> () {
+    pub(crate) fn set_bit(&mut self, bit: StatusRegisterBit, value: bool) {
         match bit {
             StatusRegisterBit::CarryBit => self.carry_bit = value,
             StatusRegisterBit::ZeroBit => self.zero_bit = value,
@@ -191,7 +191,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cpu_register_increment() {
+    fn test_cpu_register_increment_decrement() {
         let mut cpu_reg = CpuRegister { binary_value: 0xFF };
 
         cpu_reg.increment();
@@ -199,6 +199,12 @@ mod tests {
 
         cpu_reg.increment();
         assert_eq!(cpu_reg.get(), 1);
+
+        cpu_reg.decrement();
+        assert_eq!(cpu_reg.get(), 0);
+
+        cpu_reg.decrement();
+        assert_eq!(cpu_reg.get(), 0xFF);
     }
 
     #[test]
