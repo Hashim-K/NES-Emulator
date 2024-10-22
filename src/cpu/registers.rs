@@ -50,6 +50,17 @@ impl StatusRegister {
         self.negative_bit = (value & 1 << 7) != 0;
     }
 
+    pub(crate) fn get_bit(&mut self, bit: StatusRegisterBit) -> bool {
+        match bit {
+            StatusRegisterBit::CarryBit => self.carry_bit,
+            StatusRegisterBit::ZeroBit => self.zero_bit,
+            StatusRegisterBit::InterruptBit => self.interrupt_bit,
+            StatusRegisterBit::DecimalBit => self.decimal_bit,
+            StatusRegisterBit::OverflowBit => self.overflow_bit,
+            StatusRegisterBit::NegativeBit => self.negative_bit,
+        }
+    }
+
     pub(crate) fn get_carry(self) -> bool {
         self.carry_bit
     }
