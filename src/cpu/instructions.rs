@@ -919,27 +919,28 @@ impl Instruction {
             InstructionType::PHA => {
                 let address = 0x0100 + cpu.stack_pointer.get() as u16;
                 memory.write(address, cpu.accumulator.get())?;
-                cpu.stack_pointer.increment();
+                cpu.stack_pointer.decrement();
                 Ok(())
             }
 
             InstructionType::PHP => {
                 let address = 0x0100 + cpu.stack_pointer.get() as u16;
                 memory.write(address, cpu.status_register.get())?;
-                cpu.stack_pointer.increment();
+                cpu.stack_pointer.decrement();
                 Ok(())
             }
 
             InstructionType::PLA => {
+                cpu.stack_pointer.increment();
                 let address = 0x0100 + cpu.stack_pointer.get() as u16;
                 cpu.accumulator.set(memory.read(address)?);
-                cpu.stack_pointer.decrement();
                 Self::set_status_if_zero(cpu.accumulator.get(), cpu);
                 Self::set_status_if_negative(cpu.accumulator.get(), cpu);
                 Ok(())
             }
 
             InstructionType::PLP => {
+                cpu.stack_pointer.increment();
                 let address = 0x0100 + cpu.stack_pointer.get() as u16;
                 let value = memory.read(address)?;
                 cpu.status_register.set_from_stack(value);
