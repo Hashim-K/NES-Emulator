@@ -1162,6 +1162,7 @@ impl Instruction {
         }
     }
 
+    // Return true if instruction is Read-Modify-Write
     pub fn is_rmw(&self) -> bool {
         match self.instruction_type {
             InstructionType::ASL
