@@ -185,8 +185,10 @@ impl Cartridge {
 fn test_parse_header() {
     let expected_header = RomHeader {
         mirroring: Mirroring::Horizontal,
+        trainer: false,
         peristent_memory: false,
         ignore_mirroring_control: false,
+        program_ram_size: 0,
         program_rom_size: 1,
         charactor_memory_size: 1,
         mapper_number: 0,
@@ -202,8 +204,10 @@ fn test_parse_header() {
 fn test_new_cartridge() {
     let expected_header = RomHeader {
         mirroring: Mirroring::Horizontal,
+        trainer: false,
         peristent_memory: false,
         ignore_mirroring_control: false,
+        program_ram_size: 0,
         program_rom_size: 1,
         charactor_memory_size: 1,
         mapper_number: 0,
