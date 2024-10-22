@@ -166,10 +166,18 @@ impl Cpu {
 
             // rel	        relative	            OPC $BB	        branch target is PC + signed offset BB ***
             AddressingMode::Relative => {
-                let offset: i8 = ll as i8;
+                // Add u8 as twos complement i8 to u16
+                let new_pc = self
+                    .program_counter
+                    .get()
+                    .wrapping_add((ll & 0b0111_1111) as u16)
+                    .wrapping_sub((ll & 0b1000_0000) as u16);
+                if ((new_pc & 0x0100) ^ (self.program_counter.get() & 0x0100)) == 0x0100 {
+                    self.page_crossing = true;
+                }
                 Ok(OperandValue {
                     value: None,
-                    address: Some((self.program_counter.get() as i16 + offset as i16) as u16),
+                    address: Some(new_pc),
                 })
             }
 
@@ -402,4 +410,22 @@ impl Cpu {
 
         Ok(())
     }
+}
+
+#[test]
+fn test_address_offset() {
+    let offset = 128u8;
+    assert_eq!(
+        128u16
+            .wrapping_add((offset & 0b0111_1111) as u16)
+            .wrapping_sub((offset & 0b1000_0000) as u16),
+        0
+    );
+    let offset = 127u8;
+    assert_eq!(
+        128u16
+            .wrapping_add((offset & 0b0111_1111) as u16)
+            .wrapping_sub((offset & 0b1000_0000) as u16),
+        255
+    );
 }
