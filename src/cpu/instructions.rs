@@ -811,23 +811,32 @@ impl Instruction {
         }
     }
 
+    // Set zero bit if the number read is 0
+    fn set_status_if_zero(value: u8, cpu: &mut Cpu) {
+        if value == 0 {
+            cpu.status_register
+                .set_bit(StatusRegisterBit::ZeroBit, true);
+        } else {
+            cpu.status_register
+                .set_bit(StatusRegisterBit::ZeroBit, false);
+        }
+    }
+
+    // Set negative bit if the number read is negative
+    fn set_status_if_negative(value: u8, cpu: &mut Cpu) {
+        // Check if 7th bit is set
+        cpu.status_register
+            .set_bit(StatusRegisterBit::NegativeBit, value & (1 << 7) > 0);
+    }
+
     pub fn execute(&self, cpu: &mut Cpu, memory: &mut Memory) -> Result<(), MainError> {
         let operand_value = cpu.get_operand_value(&self.addressing_mode, memory)?;
         match self.instruction_type {
             InstructionType::LDA => {
                 let value = operand_value.value.expect("LDA operand value is None");
                 cpu.x_register.set(value);
-                // set zero bit if the number read is 0
-                if value == 0 {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                } else {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                }
-                // set negative bit to the value of the 7th bit
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::NegativeBit, (value as u8) > 127);
+                Self::set_status_if_zero(value, cpu);
+                Self::set_status_if_negative(value, cpu);
                 Ok(())
             }
 
@@ -835,34 +844,16 @@ impl Instruction {
             InstructionType::LDX => {
                 let value = operand_value.value.expect("LDX operand value is None");
                 cpu.x_register.set(value);
-                // set zero bit if the number read is 0
-                if value == 0 {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                } else {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                }
-                // set negative bit to the value of the 7th bit
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::NegativeBit, (value as u8) > 127);
+                Self::set_status_if_zero(value, cpu);
+                Self::set_status_if_negative(value, cpu);
                 Ok(())
             }
 
             InstructionType::LDY => {
                 let value = operand_value.value.expect("LDY operand value is None");
                 cpu.y_register.set(value);
-                // set zero bit if the number read is 0
-                if value == 0 {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                } else {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                }
-                // set negative bit to the value of the 7th bit
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::NegativeBit, (value as u8) > 127);
+                Self::set_status_if_zero(value, cpu);
+                Self::set_status_if_negative(value, cpu);
                 Ok(())
             }
 
@@ -884,205 +875,332 @@ impl Instruction {
             }
 
             InstructionType::TAX => {
-                //TODO: Implement
+                cpu.x_register.set(cpu.accumulator.get());
+                Self::set_status_if_zero(cpu.x_register.get(), cpu);
+                Self::set_status_if_negative(cpu.x_register.get(), cpu);
                 Ok(())
             }
 
             InstructionType::TAY => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::TSX => {
-                //TODO: Implement
+                cpu.y_register.set(cpu.accumulator.get());
+                Self::set_status_if_zero(cpu.y_register.get(), cpu);
+                Self::set_status_if_negative(cpu.y_register.get(), cpu);
                 Ok(())
             }
 
             InstructionType::TXA => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::TXS => {
-                //TODO: Implement
+                cpu.accumulator.set(cpu.x_register.get());
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
                 Ok(())
             }
 
             InstructionType::TYA => {
-                //TODO: Implement
+                cpu.accumulator.set(cpu.y_register.get());
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
+                Ok(())
+            }
+
+            InstructionType::TSX => {
+                cpu.x_register.set(cpu.stack_pointer.get());
+                Self::set_status_if_zero(cpu.x_register.get(), cpu);
+                Self::set_status_if_negative(cpu.x_register.get(), cpu);
+                Ok(())
+            }
+
+            InstructionType::TXS => {
+                cpu.stack_pointer.set(cpu.x_register.get());
+                Self::set_status_if_zero(cpu.stack_pointer.get(), cpu);
+                Self::set_status_if_negative(cpu.stack_pointer.get(), cpu);
                 Ok(())
             }
 
             InstructionType::PHA => {
-                //TODO: Implement
+                let address = 0x0100 + cpu.stack_pointer.get() as u16;
+                memory.write(address, cpu.accumulator.get())?;
+                cpu.stack_pointer.decrement();
                 Ok(())
             }
 
             InstructionType::PHP => {
-                //TODO: Implement
+                let address = 0x0100 + cpu.stack_pointer.get() as u16;
+                memory.write(address, cpu.status_register.get())?;
+                cpu.stack_pointer.decrement();
                 Ok(())
             }
 
             InstructionType::PLA => {
-                //TODO: Implement
+                cpu.stack_pointer.increment();
+                let address = 0x0100 + cpu.stack_pointer.get() as u16;
+                cpu.accumulator.set(memory.read(address)?);
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
                 Ok(())
             }
 
             InstructionType::PLP => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::DEC => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::DEX => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::DEY => {
-                //TODO: Implement
+                cpu.stack_pointer.increment();
+                let address = 0x0100 + cpu.stack_pointer.get() as u16;
+                let value = memory.read(address)?;
+                cpu.status_register.set_from_stack(value);
                 Ok(())
             }
 
             InstructionType::INC => {
-                //TODO: Implement
+                let address = operand_value.address.expect("INC Address is None");
+                let value = operand_value.value.expect("INC value is None");
+                let new_value = value.wrapping_add(1);
+                cpu.memory_write(address, new_value, memory)?;
+                Self::set_status_if_zero(new_value, cpu);
+                Self::set_status_if_negative(new_value, cpu);
                 Ok(())
             }
 
             InstructionType::INX => {
-                let value: u8 = cpu.x_register.get().wrapping_add(1);
-                cpu.x_register.set(value);
-
-                // set zero bit if the number read is 0
-                if value == 0 {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                } else {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, false);
-                }
-                // set negative bit to the value of the 7th bit
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::NegativeBit, (value as u8) > 127);
-
+                cpu.x_register.set(cpu.x_register.get().wrapping_add(1));
+                Self::set_status_if_zero(cpu.x_register.get(), cpu);
+                Self::set_status_if_negative(cpu.x_register.get(), cpu);
                 Ok(())
             }
 
             InstructionType::INY => {
-                let value: u8 = cpu.y_register.get().wrapping_add(1);
-                cpu.y_register.set(value);
+                cpu.y_register.set(cpu.y_register.get().wrapping_add(1));
+                Self::set_status_if_zero(cpu.y_register.get(), cpu);
+                Self::set_status_if_negative(cpu.y_register.get(), cpu);
+                Ok(())
+            }
 
-                // set zero bit if the number read is 0
-                if value == 0 {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, true);
-                } else {
-                    cpu.status_register
-                        .set_bit(StatusRegisterBit::ZeroBit, false);
-                }
-                // set negative bit to the value of the 7th bit
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::NegativeBit, (value as u8) > 127);
+            InstructionType::DEC => {
+                let address = operand_value.address.expect("DEC Address is None");
+                let value = operand_value.value.expect("DEC value is None");
+                let new_value = value.wrapping_sub(1);
+                cpu.memory_write(address, new_value, memory)?;
+                Self::set_status_if_zero(new_value, cpu);
+                Self::set_status_if_negative(new_value, cpu);
+                Ok(())
+            }
 
+            InstructionType::DEX => {
+                cpu.x_register.set(cpu.x_register.get().wrapping_sub(1));
+                Self::set_status_if_zero(cpu.x_register.get(), cpu);
+                Self::set_status_if_negative(cpu.x_register.get(), cpu);
+                Ok(())
+            }
+
+            InstructionType::DEY => {
+                cpu.y_register.set(cpu.y_register.get().wrapping_sub(1));
+                Self::set_status_if_zero(cpu.y_register.get(), cpu);
+                Self::set_status_if_negative(cpu.y_register.get(), cpu);
                 Ok(())
             }
 
             InstructionType::ADC => {
-                //TODO: Implement
+                let acc = cpu.accumulator.get();
+                let op_value = operand_value.value.expect("Operand value for ADC is None");
+                let carry = u8::from(cpu.status_register.get_carry());
+                let result = acc.wrapping_add(op_value).wrapping_add(carry);
+                let did_carry =
+                    result < acc || (acc == 0 && carry == 1) || (result == 0xff && carry == 1);
+                let did_overflow = (acc > 127 && op_value > 127 && result < 128)
+                    || (acc < 128 && result < 128 && result > 127);
+                cpu.accumulator.set(result);
+
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
+
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, did_carry);
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::OverflowBit, did_overflow);
                 Ok(())
             }
 
+            // TODO implement decimal mode and carry
             InstructionType::SBC => {
-                //TODO: Implement
+                let acc = cpu.accumulator.get();
+                let op_value = operand_value.value.expect("Operand value for SBC is None");
+                let carry = u8::from(cpu.status_register.get_carry());
+                let result = acc.wrapping_sub(op_value).wrapping_sub(1 - carry);
+                let did_carry = false; // TODO
+
+                // Check if sign is wrong. This happens in the following cases:
+                // positive - negative results in negative
+                // negative - positive results in positive
+                let did_overflow = (acc ^ op_value) & (acc ^ result) & 0x80 != 0;
+                cpu.accumulator.set(result);
+
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
+
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, did_carry);
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::OverflowBit, did_overflow);
+                Ok(())
+            }
+
+            InstructionType::CMP | InstructionType::CPX | InstructionType::CPY => {
+                let reg = match self.instruction_type {
+                    InstructionType::CMP => cpu.accumulator.get(),
+                    InstructionType::CPX => cpu.x_register.get(),
+                    InstructionType::CPY => cpu.y_register.get(),
+                    _ => panic!(),
+                };
+                let value = operand_value
+                    .value
+                    .expect("Operand value for CMP/CPX/CPY is None");
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, reg >= value);
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::ZeroBit, reg == value);
+                Self::set_status_if_negative(reg.wrapping_sub(value), cpu);
                 Ok(())
             }
 
             InstructionType::AND => {
-                //TODO: Implement
+                let value = cpu.accumulator.get()
+                    & operand_value.value.expect("Operand value for AND is None");
+                cpu.accumulator.set(value);
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
                 Ok(())
             }
 
             InstructionType::EOR => {
-                //TODO: Implement
+                let value = cpu.accumulator.get()
+                    ^ operand_value.value.expect("Operand value for EOR is None");
+                cpu.accumulator.set(value);
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
                 Ok(())
             }
 
             InstructionType::ORA => {
-                //TODO: Implement
+                let value = cpu.accumulator.get()
+                    | operand_value.value.expect("Operand value for ORA is None");
+                cpu.accumulator.set(value);
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
+                Ok(())
+            }
+
+            InstructionType::BIT => {
+                let operator_value = operand_value.value.expect("Operand value for BIT is None");
+                let value = cpu.accumulator.get() & operator_value;
+                Self::set_status_if_zero(value, cpu);
+                Self::set_status_if_negative(operator_value, cpu);
+                // Check if 6th bit is set
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::OverflowBit, value & (1 << 6) > 0);
                 Ok(())
             }
 
             InstructionType::ASL => {
-                //TODO: Implement
+                let operator_value = operand_value.value.expect("Operand value for ASL is None");
+                let result = operator_value << 1;
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 7) != 0);
+                Self::set_status_if_zero(result, cpu);
+                Self::set_status_if_negative(result, cpu);
+
+                if let Some(address) = operand_value.address {
+                    memory.write(address, result)?;
+                } else {
+                    cpu.accumulator.set(result)
+                }
                 Ok(())
             }
 
             InstructionType::LSR => {
-                //TODO: Implement
+                let operator_value = operand_value.value.expect("Operand value for LSR is None");
+                let result = operator_value << 1;
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 7) != 0);
+                Self::set_status_if_zero(result, cpu);
+                Self::set_status_if_negative(result, cpu);
+
+                if let Some(address) = operand_value.address {
+                    memory.write(address, result)?;
+                } else {
+                    cpu.accumulator.set(result)
+                }
                 Ok(())
             }
 
             InstructionType::ROL => {
-                //TODO: Implement
+                let operator_value = operand_value.value.expect("Operand value for ROL is None");
+                let carry = u8::from(cpu.status_register.get_carry());
+                let result = operator_value << 1 | carry;
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 7) != 0);
+                Self::set_status_if_zero(result, cpu);
+                Self::set_status_if_negative(result, cpu);
+
+                if let Some(address) = operand_value.address {
+                    memory.write(address, result)?;
+                } else {
+                    cpu.accumulator.set(result)
+                }
                 Ok(())
             }
 
             InstructionType::ROR => {
-                //TODO: Implement
+                let operator_value = operand_value.value.expect("Operand value for ROR is None");
+                let carry = u8::from(cpu.status_register.get_carry());
+                let result = operator_value >> 1 | carry << 7;
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 0) != 0);
+                Self::set_status_if_zero(result, cpu);
+                Self::set_status_if_negative(result, cpu);
+
+                if let Some(address) = operand_value.address {
+                    memory.write(address, result)?;
+                } else {
+                    cpu.accumulator.set(result)
+                }
                 Ok(())
             }
 
             InstructionType::CLC => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, false);
                 Ok(())
             }
 
             InstructionType::CLD => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::DecimalBit, false);
                 Ok(())
             }
 
             InstructionType::CLI => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::InterruptBit, false);
                 Ok(())
             }
 
             InstructionType::CLV => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::OverflowBit, false);
                 Ok(())
             }
 
             InstructionType::SEC => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::CarryBit, true);
                 Ok(())
             }
 
             InstructionType::SED => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::DecimalBit, true);
                 Ok(())
             }
 
             InstructionType::SEI => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::CMP => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::CPX => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::CPY => {
-                //TODO: Implement
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::InterruptBit, true);
                 Ok(())
             }
 
@@ -1127,7 +1245,8 @@ impl Instruction {
             }
 
             InstructionType::JMP => {
-                //TODO: Implement
+                cpu.program_counter
+                    .set(operand_value.address.expect("Expected address for JMP"));
                 Ok(())
             }
 
@@ -1147,11 +1266,6 @@ impl Instruction {
             }
 
             InstructionType::RTI => {
-                //TODO: Implement
-                Ok(())
-            }
-
-            InstructionType::BIT => {
                 //TODO: Implement
                 Ok(())
             }

@@ -52,12 +52,17 @@ mod tests {
     use log::LevelFilter;
     use tudelft_nes_test::{run_tests, TestSelector};
 
-    /// This test fails in the template, since you didn't implement the cpu yet.
-    #[ignore]
     #[test]
     fn test_nrom() {
         env_logger::builder().filter_level(LevelFilter::Info).init();
         let result = run_tests::<System>(TestSelector::NROM_TEST);
+        assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
+    }
+
+    #[ignore]
+    #[test]
+    fn test_official_instructions() {
+        let result = run_tests::<System>(TestSelector::OFFICIAL_INSTRS);
         assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
     }
 }
