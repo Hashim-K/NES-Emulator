@@ -116,6 +116,7 @@ pub struct Cartridge {
     prg_bank: u8,
     chr_bank_0: u8,
     chr_bank_1: u8,
+    shift_register: u8,
     prg_bank_mode: ProgramBankMode,
     chr_bank_mode: CharacterBankMode,
     pgr_ram: [u8; 8192], // 8 KiB of program ram
@@ -169,6 +170,7 @@ impl Cartridge {
             prg_bank: 1,
             chr_bank_0: 1,
             chr_bank_1: 2,
+            shift_register: 16,
             prg_bank_mode: ProgramBankMode::Fixlast,
             chr_bank_mode: CharacterBankMode::Fullswitch,
             // pgr ram needs to mirror itself to fill 8kib
@@ -187,31 +189,37 @@ impl Cartridge {
                     _ => return Err(MemoryError::UnknownAddress),
                 }
             }
-            1 => {
-                match self.prg_bank_mode {
-                    ProgramBankMode::Fullswitch => {
-                        let banknr = self.prg_bank >> 1;
-                        match address {
-                            0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
-                            0x8000.. => self.prg_data[(address - 0x8000 + ((banknr - 1) as u16) * 16384) as usize] = value, // switch in 32kb blocks
-                            _ => return Err(MemoryError::UnknownAddress),
-                        }
-                    }
-                    ProgramBankMode::Fixfirst => {
-                        match address {
-                            0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
-                            0x8000..0xc000 => self.prg_data[(address - 0x8000) as usize] = value, // fix first bank to 0x8000
-                            0xc000.. => self.prg_data[(address - 0xc000 + 0x4000 + ((self.prg_bank - 1) as u16) * 16384) as usize] = value, // make 0x8000 - 0xc000 switchable
-                            _ => return Err(MemoryError::UnknownAddress),
-                        }
-                    }
-                    ProgramBankMode::Fixlast => {
-                        match address {
-                            0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
-                            0x8000..0xc000 => self.prg_data[(address - 0x8000 + ((self.prg_bank - 1) as u16) * 16384) as usize] = value, // make 0x8000 - 0xc000 switchable
-                            0xc000.. => self.prg_data[(address - 0xc000 + 0x4000 + (self.header.program_rom_size as u16) * 16384) as usize] = value, // Fix last bank to 0xc000
-                            _ => return Err(MemoryError::UnknownAddress),
-                        }
+            1 => {  
+                if (self.shift_register & 1) != 1 {
+                    self.shift_register = (self.shift_register >> 1) + ((value & 1) << 4)
+                }
+                else{
+                    match address {
+                        0x8000..0xa000 => {
+                            match self.shift_register & 3 {
+                                0 => self.header.mirroring = Mirroring::SingleScreenLower,
+                                1 => self.header.mirroring = Mirroring::SingleScreenUpper,
+                                2 => self.header.mirroring = Mirroring::Horizontal,
+                                3 => self.header.mirroring = Mirroring::Vertical,
+                                _ => return Err(MemoryError::ShiftAddressError),
+                            }
+                            match (self.shift_register >> 2) & 3 {
+                                0 | 1 => self. prg_bank_mode = ProgramBankMode::Fullswitch,
+                                2 => self. prg_bank_mode = ProgramBankMode::Fixfirst,
+                                3 => self. prg_bank_mode = ProgramBankMode::Fixlast,
+                                _ => return Err(MemoryError::ShiftAddressError),
+                            }
+                            if (self.shift_register >> 4) & 1 == 0 {
+                                self.chr_bank_mode = CharacterBankMode::Fullswitch
+                            }
+                            else{
+                                self.chr_bank_mode = CharacterBankMode::Halfswitch
+                            }
+                        },
+                        0xa000..0xc000 => self.chr_bank_0 = self.shift_register,
+                        0xc000..0xe000 => self.chr_bank_1 = self.shift_register,
+                        0xe000.. => self.prg_bank = self.shift_register,
+                        _ => return Err(MemoryError::MapperAddressError(address)),
                     }
                 }
             }
@@ -302,6 +310,7 @@ fn test_new_cartridge() {
         prg_bank: 1,
         chr_bank_0: 1,
         chr_bank_1: 2,
+        shift_register: 16,
         chr_bank_mode: CharacterBankMode::Fullswitch,
         prg_bank_mode: ProgramBankMode::Fullswitch,
         pgr_ram: [0; 8192],

@@ -18,6 +18,10 @@ pub enum MemoryError {
     RomError(#[from] RomError),
     #[error("Unknown Address Error: Memory address not in the right range")]
     UnknownAddress,
+    #[error("Error in shift register data")]
+    ShiftAddressError,
+    #[error("Error writing to address for MMC1 mapper: {0}")]
+    MapperAddressError(u16),
 }
 
 #[derive(Debug, Error)]
