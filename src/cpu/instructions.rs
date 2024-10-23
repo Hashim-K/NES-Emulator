@@ -1418,4 +1418,17 @@ impl Instruction {
             _ => false,
         }
     }
+
+    // Return true if instruction is Read-Modify-Write
+    pub fn is_rmw(&self) -> bool {
+        match self.instruction_type {
+            InstructionType::ASL
+            | InstructionType::DEC
+            | InstructionType::INC
+            | InstructionType::LSR
+            | InstructionType::ROL
+            | InstructionType::ROR => true,
+            _ => false,
+        }
+    }
 }

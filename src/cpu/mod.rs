@@ -410,6 +410,7 @@ impl Cpu {
 
         Ok(())
     }
+
 }
 
 #[test]
