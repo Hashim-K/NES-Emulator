@@ -45,7 +45,7 @@ impl AddressingMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum InstructionType {
     //888      8888888888  .d8888b.         d8888 888
     //888      888        d88P  Y88b       d88888 888
@@ -834,7 +834,7 @@ impl Instruction {
         match self.instruction_type {
             InstructionType::LDA => {
                 let value = operand_value.value.expect("LDA operand value is None");
-                cpu.x_register.set(value);
+                cpu.accumulator.set(value);
                 Self::set_status_if_zero(value, cpu);
                 Self::set_status_if_negative(value, cpu);
                 Ok(())
@@ -858,18 +858,21 @@ impl Instruction {
 
             InstructionType::STA => {
                 let address: u16 = operand_value.address.expect("STA Address is None");
-                cpu.memory_write(address, cpu.accumulator.get(), memory)?;
+                // cpu.memory_write(address, cpu.accumulator.get(), memory)?;
+                memory.write(address, cpu.accumulator.get())?;
                 Ok(())
             }
             InstructionType::STX => {
                 let address: u16 = operand_value.address.expect("STX Address is None");
-                cpu.memory_write(address, cpu.x_register.get(), memory)?;
+                // cpu.memory_write(address, cpu.x_register.get(), memory)?;
+                memory.write(address, cpu.x_register.get())?;
                 Ok(())
             }
 
             InstructionType::STY => {
                 let address: u16 = operand_value.address.expect("STY Address is None");
-                cpu.memory_write(address, cpu.y_register.get(), memory)?;
+                // cpu.memory_write(address, cpu.y_register.get(), memory)?;
+                memory.write(address, cpu.y_register.get())?;
                 Ok(())
             }
 
@@ -910,8 +913,8 @@ impl Instruction {
 
             InstructionType::TXS => {
                 cpu.stack_pointer.set(cpu.x_register.get());
-                Self::set_status_if_zero(cpu.stack_pointer.get(), cpu);
-                Self::set_status_if_negative(cpu.stack_pointer.get(), cpu);
+                // Self::set_status_if_zero(cpu.stack_pointer.get(), cpu);
+                // Self::set_status_if_negative(cpu.stack_pointer.get(), cpu);
                 Ok(())
             }
 
@@ -950,21 +953,23 @@ impl Instruction {
                 let address = operand_value.address.expect("INC Address is None");
                 let value = operand_value.value.expect("INC value is None");
                 let new_value = value.wrapping_add(1);
-                cpu.memory_write(address, new_value, memory)?;
+                // cpu.memory_write(address, new_value, memory)?;
+                memory.write(address, new_value)?;
                 Self::set_status_if_zero(new_value, cpu);
                 Self::set_status_if_negative(new_value, cpu);
                 Ok(())
             }
 
             InstructionType::INX => {
-                cpu.x_register.set(cpu.x_register.get().wrapping_add(1));
+                cpu.x_register.increment();
                 Self::set_status_if_zero(cpu.x_register.get(), cpu);
                 Self::set_status_if_negative(cpu.x_register.get(), cpu);
+                // println!("{cpu:?}");
                 Ok(())
             }
 
             InstructionType::INY => {
-                cpu.y_register.set(cpu.y_register.get().wrapping_add(1));
+                cpu.y_register.increment();
                 Self::set_status_if_zero(cpu.y_register.get(), cpu);
                 Self::set_status_if_negative(cpu.y_register.get(), cpu);
                 Ok(())
@@ -974,21 +979,22 @@ impl Instruction {
                 let address = operand_value.address.expect("DEC Address is None");
                 let value = operand_value.value.expect("DEC value is None");
                 let new_value = value.wrapping_sub(1);
-                cpu.memory_write(address, new_value, memory)?;
+                // cpu.memory_write(address, new_value, memory)?;
+                memory.write(address, new_value)?;
                 Self::set_status_if_zero(new_value, cpu);
                 Self::set_status_if_negative(new_value, cpu);
                 Ok(())
             }
 
             InstructionType::DEX => {
-                cpu.x_register.set(cpu.x_register.get().wrapping_sub(1));
+                cpu.x_register.decrement();
                 Self::set_status_if_zero(cpu.x_register.get(), cpu);
                 Self::set_status_if_negative(cpu.x_register.get(), cpu);
                 Ok(())
             }
 
             InstructionType::DEY => {
-                cpu.y_register.set(cpu.y_register.get().wrapping_sub(1));
+                cpu.y_register.decrement();
                 Self::set_status_if_zero(cpu.y_register.get(), cpu);
                 Self::set_status_if_negative(cpu.y_register.get(), cpu);
                 Ok(())
@@ -1204,42 +1210,123 @@ impl Instruction {
             }
 
             InstructionType::BCC => {
-                //TODO: Implement
+                if !cpu.status_register.get_bit(StatusRegisterBit::CarryBit) {
+                    cpu.branch_success = true;
+                    cpu.program_counter.set(
+                        operand_value
+                            .address
+                            .expect("BCC instruction should recieve an address"),
+                    );
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
+                }
                 Ok(())
             }
 
             InstructionType::BCS => {
-                //TODO: Implement
+                if cpu.status_register.get_bit(StatusRegisterBit::CarryBit) {
+                    cpu.branch_success = true;
+                    cpu.program_counter.set(
+                        operand_value
+                            .address
+                            .expect("BCS instruction should recieve an address"),
+                    );
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
+                }
                 Ok(())
             }
 
             InstructionType::BEQ => {
-                //TODO: Implement
+                if cpu.status_register.get_bit(StatusRegisterBit::ZeroBit) {
+                    cpu.branch_success = true;
+                    cpu.program_counter.set(
+                        operand_value
+                            .address
+                            .expect("BEQ instruction should recieve an address"),
+                    );
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
+                }
                 Ok(())
             }
 
             InstructionType::BMI => {
-                //TODO: Implement
+                if cpu.status_register.get_bit(StatusRegisterBit::NegativeBit) {
+                    cpu.branch_success = true;
+                    cpu.program_counter.set(
+                        operand_value
+                            .address
+                            .expect("BMI instruction should recieve an address"),
+                    );
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
+                }
                 Ok(())
             }
 
             InstructionType::BNE => {
-                //TODO: Implement
+                if !cpu.status_register.get_bit(StatusRegisterBit::ZeroBit) {
+                    cpu.branch_success = true;
+                    cpu.program_counter.set(
+                        operand_value
+                            .address
+                            .expect("BNE instruction should recieve an address"),
+                    );
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
+                }
+                // println!("branching result: {}", cpu.branch_success);
                 Ok(())
             }
 
             InstructionType::BPL => {
-                //TODO: Implement
+                if !cpu.status_register.get_bit(StatusRegisterBit::NegativeBit) {
+                    cpu.branch_success = true;
+                    cpu.program_counter.set(
+                        operand_value
+                            .address
+                            .expect("BPL instruction should recieve an address"),
+                    );
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
+                }
                 Ok(())
             }
 
             InstructionType::BVC => {
-                //TODO: Implement
+                if !cpu.status_register.get_bit(StatusRegisterBit::OverflowBit) {
+                    cpu.branch_success = true;
+                    cpu.program_counter.set(
+                        operand_value
+                            .address
+                            .expect("BVC instruction should recieve an address"),
+                    );
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
+                }
                 Ok(())
             }
 
             InstructionType::BVS => {
-                //TODO: Implement
+                if cpu.status_register.get_bit(StatusRegisterBit::OverflowBit) {
+                    cpu.branch_success = true;
+                    cpu.program_counter.set(
+                        operand_value
+                            .address
+                            .expect("BVS instruction should recieve an address"),
+                    );
+                } else {
+                    cpu.branch_success = false;
+                    cpu.page_crossing = false;
+                }
                 Ok(())
             }
 
@@ -1250,29 +1337,73 @@ impl Instruction {
             }
 
             InstructionType::JSR => {
-                //TODO: Implement
+                memory.write(
+                    cpu.stack_pointer.get() as u16 + 0x0100,
+                    cpu.program_counter.get_hibyte(),
+                )?;
+                cpu.stack_pointer.decrement();
+                memory.write(
+                    cpu.stack_pointer.get() as u16 + 0x0100,
+                    cpu.program_counter.get_lobyte(),
+                )?;
+                cpu.stack_pointer.decrement();
+                cpu.program_counter
+                    .set(operand_value.address.expect("Expected address for JMP"));
                 Ok(())
             }
 
             InstructionType::RTS => {
-                //TODO: Implement
+                cpu.stack_pointer.increment();
+                let lobyte = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                cpu.program_counter.set_lobyte(lobyte);
+
+                cpu.stack_pointer.increment();
+                let hibyte = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                cpu.program_counter.set_hibyte(hibyte);
                 Ok(())
             }
 
             InstructionType::BRK => {
-                //TODO: Implement
+                cpu.program_counter.increment();
+                memory.write(
+                    cpu.stack_pointer.get() as u16 + 0x0100,
+                    cpu.program_counter.get_hibyte(),
+                )?;
+                cpu.stack_pointer.decrement();
+                memory.write(
+                    cpu.stack_pointer.get() as u16 + 0x0100,
+                    cpu.program_counter.get_lobyte(),
+                )?;
+                cpu.stack_pointer.decrement();
+                memory.write(
+                    cpu.stack_pointer.get() as u16 + 0x0100,
+                    cpu.status_register.get(),
+                )?;
+                cpu.stack_pointer.decrement();
+
+                cpu.program_counter.set_lobyte(memory.read(0xFFFE)?);
+                cpu.program_counter.set_hibyte(memory.read(0xFFFF)?);
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::InterruptBit, true);
                 Ok(())
             }
 
             InstructionType::RTI => {
-                //TODO: Implement
+                cpu.stack_pointer.increment();
+                let status_register_value = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                cpu.status_register.set_from_stack(status_register_value);
+
+                cpu.stack_pointer.increment();
+                let lobyte = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                cpu.program_counter.set_lobyte(lobyte);
+
+                cpu.stack_pointer.increment();
+                let hibyte = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                cpu.program_counter.set_hibyte(hibyte);
                 Ok(())
             }
 
-            InstructionType::NOP => {
-                //TODO: Implement
-                Ok(())
-            }
+            InstructionType::NOP => Ok(()),
         }
     }
 

@@ -19,7 +19,7 @@ pub(crate) struct StatusRegister {
 }
 
 impl StatusRegister {
-    pub(crate) fn set_bit(&mut self, bit: StatusRegisterBit, value: bool) -> () {
+    pub(crate) fn set_bit(&mut self, bit: StatusRegisterBit, value: bool) {
         match bit {
             StatusRegisterBit::CarryBit => self.carry_bit = value,
             StatusRegisterBit::ZeroBit => self.zero_bit = value,
@@ -89,6 +89,7 @@ impl CpuRegister {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct ProgramCounter {
     binary_value: u16,
 }
@@ -102,16 +103,21 @@ impl ProgramCounter {
         self.binary_value = value;
     }
 
-    //TODO: implement endianness-dependent version
-    // pub(crate) fn set_lobit(&mut self, value: u8) {
-    //     let addition_value: u16 = value as u16;
-    //     self.binary_value = self.binary_value & 0b0000_0000_1111_1111;
-    // }
+    pub(crate) fn get_lobyte(&self) -> u8 {
+        return self.binary_value as u8;
+    }
 
-    // pub(crate) fn set_hibit(&mut self, value: u8) {
-    //     let comparison_value: u16 = (value as u16) << 8;
-    //     self.binary_value = self.binary_value & comparison_value;
-    // }
+    pub(crate) fn get_hibyte(&self) -> u8 {
+        return (self.binary_value >> 8) as u8;
+    }
+
+    pub(crate) fn set_lobyte(&mut self, value: u8) {
+        self.binary_value = (self.binary_value & 0xFF00) | value as u16;
+    }
+
+    pub(crate) fn set_hibyte(&mut self, value: u8) {
+        self.binary_value = (self.binary_value & 0x00FF) | ((value as u16) << 8);
+    }
 
     pub(crate) fn increment(&mut self) -> () {
         self.binary_value = self.binary_value.wrapping_add(1);
@@ -196,7 +202,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cpu_register_increment() {
+    fn test_cpu_register_increment_decrement() {
         let mut cpu_reg = CpuRegister { binary_value: 0xFF };
 
         cpu_reg.increment();
@@ -204,6 +210,12 @@ mod tests {
 
         cpu_reg.increment();
         assert_eq!(cpu_reg.get(), 1);
+
+        cpu_reg.decrement();
+        assert_eq!(cpu_reg.get(), 0);
+
+        cpu_reg.decrement();
+        assert_eq!(cpu_reg.get(), 0xFF);
     }
 
     #[test]
@@ -217,6 +229,21 @@ mod tests {
         // Test setting another value
         pc.set(0xFFFF);
         assert_eq!(pc.get(), 0xFFFF);
+
+        pc.set(0x1111);
+        pc.set_hibyte(0xFF);
+        assert_eq!(pc.get(), 0xFF11);
+        assert_eq!(pc.get_hibyte(), 0xFF);
+
+        pc.set(0x1111);
+        pc.set_lobyte(0xFF);
+        assert_eq!(pc.get(), 0x11FF);
+        assert_eq!(pc.get_lobyte(), 0xFF);
+
+        pc.set_hibyte(0xFF);
+        assert_eq!(pc.get(), 0xFFFF);
+        pc.set_lobyte(0xFF);
+        assert_eq!(pc.get(), 65535);
     }
 
     #[test]

@@ -1,10 +1,14 @@
-use crate::cpu::instructions::{AddressingMode, Instruction, InstructionType};
-use crate::error::MyTickError;
-use registers::{CpuRegister, ProgramCounter, StatusRegister, StatusRegisterBit};
+use std::any::Any;
+use std::sync::mpsc::RecvTimeoutError;
 
+use crate::cpu::instructions::{AddressingMode, Instruction, InstructionType};
+use crate::error::{MemoryError, MyTickError};
 use crate::memory::Memory;
 use crate::MainError;
+use interrupt_handler::InterruptState;
+use registers::{CpuRegister, ProgramCounter, StatusRegister, StatusRegisterBit};
 mod instructions;
+mod interrupt_handler;
 mod registers;
 
 struct OperandValue {
@@ -12,6 +16,7 @@ struct OperandValue {
     address: Option<u16>,
 }
 
+#[derive(Debug)]
 pub struct Cpu {
     accumulator: CpuRegister,
     x_register: CpuRegister,
@@ -22,10 +27,15 @@ pub struct Cpu {
     current_instruction: Instruction,
     current_cycle: u8,
     instruction_cycle_count: u8,
-    irq: bool,
-    nmi: bool,
-    res: bool,
-    in_interrupt: bool,
+    interrupt_polling_cycle: u8,
+    interrupt_state: InterruptState,
+    nmi_line_prev: bool,
+    nmi_line_current: bool,
+    nmi_line_triggered: bool,
+    irq_line_triggered: bool,
+    initialized: bool,
+    branch_success: bool,
+    page_crossing: bool,
 }
 
 impl Cpu {
@@ -41,12 +51,17 @@ impl Cpu {
                 instruction_type: InstructionType::NOP,
                 addressing_mode: AddressingMode::Absolute,
             },
-            current_cycle: 0,
+            current_cycle: 1,
             instruction_cycle_count: 0,
-            irq: false,
-            nmi: false,
-            res: true,
-            in_interrupt: false,
+            interrupt_polling_cycle: 0,
+            interrupt_state: InterruptState::NormalOperation,
+            nmi_line_prev: false,
+            nmi_line_current: false,
+            nmi_line_triggered: false,
+            irq_line_triggered: false,
+            initialized: false,
+            branch_success: false,
+            page_crossing: false,
         }
     }
 
@@ -88,7 +103,7 @@ impl Cpu {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
                 Ok(OperandValue {
                     address: Some(address + self.x_register.get() as u16),
-                    value: Some(self.memory_read(address + self.y_register.get() as u16, memory)?),
+                    value: Some(self.memory_read(address + self.x_register.get() as u16, memory)?),
                 })
             }
 
@@ -151,10 +166,18 @@ impl Cpu {
 
             // rel	        relative	            OPC $BB	        branch target is PC + signed offset BB ***
             AddressingMode::Relative => {
-                let offset: i8 = ll as i8;
+                // Add u8 as twos complement i8 to u16
+                let new_pc = self
+                    .program_counter
+                    .get()
+                    .wrapping_add((ll & 0b0111_1111) as u16)
+                    .wrapping_sub((ll & 0b1000_0000) as u16);
+                if ((new_pc & 0x0100) ^ (self.program_counter.get() & 0x0100)) == 0x0100 {
+                    self.page_crossing = true;
+                }
                 Ok(OperandValue {
                     value: None,
-                    address: Some((self.program_counter.get() as i16 + offset as i16) as u16),
+                    address: Some(new_pc),
                 })
             }
 
@@ -188,20 +211,9 @@ impl Cpu {
     }
 
     fn read_next_value(&mut self, memory: &mut Memory) -> Result<u8, MainError> {
-        if self.program_counter.get() == 0xFFFC {
-            self.read_reset_vector(memory)?;
-        }
         let value = memory.read(self.program_counter.get())?;
         self.program_counter.increment();
         Ok(value)
-    }
-
-    fn read_reset_vector(&mut self, memory: &mut Memory) -> Result<(), MainError> {
-        let lower_reset_byte = memory.read(0xfffc)?;
-        let upper_reset_byte = memory.read(0xfffd)?;
-        let reset_vector: u16 = ((upper_reset_byte as u16) << 8 | lower_reset_byte as u16);
-        self.program_counter.set(reset_vector);
-        Ok(())
     }
 
     fn memory_read(&self, address: u16, memory: &mut Memory) -> Result<u8, MainError> {
@@ -220,26 +232,200 @@ impl Cpu {
     }
 
     pub fn tick(&mut self, memory: &mut Memory) -> Result<(), MyTickError> {
+        // set the cpu to the startup state fi
+        // println!("the clock is ticking");
+        // print!("cpu: {self:?}");
+        if !self.initialized {
+            self.initialize_cpu(memory)?;
+        }
+        if self.current_cycle == self.interrupt_polling_cycle {
+            // this line is for interrupt hijacking to be working later
+            let current_interrupt = self.poll_interrupts(memory, false);
+            if current_interrupt == InterruptState::IRQ
+                && self
+                    .status_register
+                    .get_bit(StatusRegisterBit::InterruptBit)
+            {
+                self.interrupt_state = InterruptState::NormalOperation;
+            } else {
+                self.interrupt_state = current_interrupt;
+            }
+        }
+        // println!("Polled for interrupts, checking ");
+        // execute interrupt or opcode
         if self.current_cycle > self.instruction_cycle_count {
             self.current_cycle = 1;
 
-            let opcode = self.read_next_value(memory)?;
-            println!("Reading opcode {:?}", opcode);
+            match self.interrupt_state {
+                InterruptState::NMI => {
+                    println!("Executing NMI");
+                    self.push_pc_and_status_on_stack(memory)?;
+                    let nmi_lobyte = memory.read(0xFFFA)?;
+                    let nmi_hibyte = memory.read(0xFFFB)?;
+                    self.program_counter.set_lobyte(nmi_lobyte);
+                    self.program_counter.set_hibyte(nmi_hibyte);
 
-            let instruction: Instruction =
-                Instruction::decode(opcode).expect("Failed decoding opcode");
-            println!("Executing instruction {:?}", instruction);
-            instruction.execute(self, memory)?;
+                    self.instruction_cycle_count = 7;
+                    self.interrupt_state = InterruptState::NormalOperation;
+                    self.interrupt_polling_cycle = 0;
+                    // TODO: there is conflicting info on masswerk and nesdev whether this line should happen
+                    // self.status_register
+                    //     .set_bit(StatusRegisterBit::InterruptBit, true);
+                }
+                InterruptState::IRQ => {
+                    // TODO: interface for irq
+                    ();
+                }
+                InterruptState::NormalOperation => {
+                    let opcode = self.read_next_value(memory)?;
+                    println!("Reading opcode {:?}", opcode);
 
-            self.instruction_cycle_count = self.current_instruction.addressing_mode.length();
-            if self.current_instruction.is_rmw() {
-                self.instruction_cycle_count -= 1;
+                    let instruction: Instruction =
+                        Instruction::decode(opcode).expect("Failed decoding opcode");
+                    println!("Executing instruction {:?}", instruction);
+                    instruction.execute(self, memory)?;
+
+                    self.instruction_cycle_count =
+                        self.current_instruction.addressing_mode.length();
+
+                    if self.page_crossing {
+                        self.instruction_cycle_count += 1;
+                        self.page_crossing = false;
+                    }
+
+                    // make sure the interrupts are polled before the second cycle of the conditional branch operations
+                    // it could still be wrong, i dont understand this part on nesdev
+                    self.interrupt_polling_cycle = self.instruction_cycle_count;
+
+                    if self.branch_success {
+                        self.instruction_cycle_count += 1;
+                        self.branch_success = false;
+                    }
+
+                    if self.current_instruction.is_rmw() {
+                        self.instruction_cycle_count -= 1;
+                    }
+                    self.current_instruction = instruction;
+                }
             }
-            self.current_instruction = instruction;
         }
 
+        // interrupt hijacking, if an interrupt arrives in the first four cycles of a BRK
+        if self.current_instruction.instruction_type == InstructionType::BRK
+            && self.current_cycle < 4
+        {
+            let current_interrupt = self.poll_interrupts(memory, false);
+            match current_interrupt {
+                InterruptState::NMI => {
+                    let nmi_lobyte = memory.read(0xFFFA)?;
+                    let nmi_hibyte = memory.read(0xFFFB)?;
+                    self.program_counter.set_lobyte(nmi_lobyte);
+                    self.program_counter.set_hibyte(nmi_hibyte);
+
+                    self.instruction_cycle_count = 7;
+                    self.interrupt_state = InterruptState::NormalOperation;
+                    self.interrupt_polling_cycle = 0;
+                }
+                InterruptState::IRQ => {
+                    if !self
+                        .status_register
+                        .get_bit(StatusRegisterBit::InterruptBit)
+                    {
+                        let nmi_lobyte = memory.read(0xFFFE)?;
+                        let nmi_hibyte = memory.read(0xFFFF)?;
+                        self.program_counter.set_lobyte(nmi_lobyte);
+                        self.program_counter.set_hibyte(nmi_hibyte);
+
+                        self.instruction_cycle_count = 7;
+                        self.interrupt_state = InterruptState::NormalOperation;
+                        self.interrupt_polling_cycle = 0;
+                    }
+                }
+                InterruptState::NormalOperation => (),
+            }
+        }
+
+        if self.nmi_line_current && !self.nmi_line_prev {
+            self.nmi_line_triggered = true;
+        }
         self.current_cycle += 1;
+        self.nmi_line_prev = self.nmi_line_prev;
+        self.nmi_line_current = false;
+        Ok(())
+    }
+
+    pub fn on_non_maskable_interrupt(&mut self) {
+        self.nmi_line_current = true;
+    }
+
+    fn push_pc_and_status_on_stack(&mut self, memory: &mut Memory) -> Result<(), MemoryError> {
+        memory.write(
+            self.stack_pointer.get() as u16 + 0x0100,
+            self.program_counter.get_hibyte(),
+        )?;
+        self.stack_pointer.decrement();
+        memory.write(
+            self.stack_pointer.get() as u16 + 0x0100,
+            self.program_counter.get_lobyte(),
+        )?;
+        self.stack_pointer.decrement();
+        memory.write(
+            self.stack_pointer.get() as u16 + 0x0100,
+            self.status_register.get() | 0x10,
+        )?;
+        self.stack_pointer.decrement();
+        Ok(())
+    }
+
+    fn poll_interrupts(&mut self, memory: &mut Memory, reset_lines: bool) -> InterruptState {
+        let return_value: InterruptState;
+        if self.nmi_line_triggered {
+            return_value = InterruptState::NMI;
+            println!("Interrupt state NMI polled");
+        } else if self.irq_line_triggered {
+            return_value = InterruptState::IRQ;
+            println!("Interrupt state IRQ polled");
+        } else {
+            return_value = InterruptState::NormalOperation;
+            // println!("Interrupt state NormalOperation polled");
+        }
+        self.irq_line_triggered = false;
+        self.nmi_line_triggered = false;
+        return_value
+    }
+
+    fn initialize_cpu(&mut self, memory: &mut Memory) -> Result<(), MemoryError> {
+        println!("intializing cpu");
+        let lobyte = memory.read(0xFFFC)?;
+        let hibyte = memory.read(0xFFFD)?;
+        self.program_counter.set_lobyte(lobyte);
+        self.program_counter.set_hibyte(hibyte);
+        // println!("program counter set to {}", self.program_counter.get());
+        self.stack_pointer.set(0xFF);
+
+        self.instruction_cycle_count = 7;
+        self.interrupt_state = InterruptState::NormalOperation;
+        self.interrupt_polling_cycle = 0;
+        self.initialized = true;
 
         Ok(())
     }
+}
+
+#[test]
+fn test_address_offset() {
+    let offset = 128u8;
+    assert_eq!(
+        128u16
+            .wrapping_add((offset & 0b0111_1111) as u16)
+            .wrapping_sub((offset & 0b1000_0000) as u16),
+        0
+    );
+    let offset = 127u8;
+    assert_eq!(
+        128u16
+            .wrapping_add((offset & 0b0111_1111) as u16)
+            .wrapping_sub((offset & 0b1000_0000) as u16),
+        255
+    );
 }
