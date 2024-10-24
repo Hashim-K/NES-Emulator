@@ -1,5 +1,6 @@
+use crate::cpu::Cpu;
 use crate::error::{MemoryError, RomError};
-use tudelft_nes_ppu::{Mirroring, PpuRegister};
+use tudelft_nes_ppu::{Mirroring, Ppu, PpuRegister};
 
 #[cfg(test)]
 use tudelft_nes_test::ROM_NROM_TEST;
@@ -18,6 +19,7 @@ fn test_address_to_ppu_register() {
     assert_eq!(address_to_ppu_register(0x3fff), PpuRegister::Data);
 }
 
+#[derive(Debug)]
 pub struct Memory {
     internal_ram: [u8; 2048],
     cartridge: Cartridge,
@@ -40,12 +42,12 @@ impl Memory {
         return Ok(self.cartridge.chr_data[address as usize]);
     }
 
-    pub fn write(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
+    pub fn write(&mut self, address: u16, value: u8, ppu: &mut Ppu) -> Result<(), MemoryError> {
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {
                 let _register = address_to_ppu_register(address);
-                todo!();
+                ppu.write_ppu_register(_register, value)
             } // NES PPU registers
             0x4000..0x4018 => todo!(), // NES APU and I/O registers
             0x4018..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
@@ -55,13 +57,24 @@ impl Memory {
         Ok(())
     }
 
-    pub fn read(&self, address: u16) -> Result<u8, MemoryError> {
+    pub fn read(&self, address: u16, cpu: &Cpu, ppu: &mut Ppu) -> Result<u8, MemoryError> {
+        let value = match address {
+            0x2000..0x4000 => {
+                let register = address_to_ppu_register(address);
+                Ok(ppu.read_ppu_register(register, cpu))
+            }
+            _ => self.read_cpu_mem(address),
+        };
+
+        return value;
+    }
+
+    pub fn read_cpu_mem(&self, address: u16) -> Result<u8, MemoryError> {
         let value = match address {
             ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]), // RAM reading, including mirroring
             0x2000..0x4000 => {
-                let _register = address_to_ppu_register(address);
-                todo!()
-            } // NES PPU registers
+                panic!("You have to use the read function if you want to access the ppu memory")
+            }
             0x4000..0x4018 => todo!(), // NES APU and I/O registers
             0x4018..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
             0x4020.. => Ok(self.cartridge.read(address)?), // Cartridge memory
