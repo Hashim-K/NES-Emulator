@@ -103,7 +103,7 @@ impl Cpu {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
                 Ok(OperandValue {
                     address: Some(address + self.x_register.get() as u16),
-                    value: Some(self.memory_read(address + self.y_register.get() as u16, memory)?),
+                    value: Some(self.memory_read(address + self.x_register.get() as u16, memory)?),
                 })
             }
 
