@@ -138,11 +138,12 @@ impl Cartridge {
                 {
                     return Err(RomError::IncorrectDataSize);
                 }
-                let mut cartridge_prg_rom: Vec<u8> = rom_bytes[16..16400].to_vec();
+                let mut cartridge_prg_rom: Vec<u8> = if header.program_rom_size == 1 {
+                    rom_bytes[16..16400].to_vec()
+                } else {
+                    rom_bytes[16..32784].to_vec()
+                };
                 let mut Cartridge_chr_rom: Vec<u8> = rom_bytes[16400..].to_vec();
-                if header.charactor_memory_size != 2 {
-                    cartridge_prg_rom = [cartridge_prg_rom, rom_bytes[16..16400].to_vec()].concat();
-                }
                 Ok(Cartridge {
                     header,
                     prg_data: cartridge_prg_rom,
@@ -159,8 +160,14 @@ impl Cartridge {
     fn write(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
         match address {
             0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
-            0x8000..0xc000 => self.prg_data[(address - 0x8000) as usize] = value, // first 16 KiB of prg rom
-            0xc000.. => self.prg_data[(address - 0xc000 + 0x4000) as usize] = value, // last 16 KiB of prg rom
+            0x8000..0xc000 => self.prg_data[(address & 0x7FFF) as usize] = value, // first 16 KiB of prg rom
+            0xc000.. => {
+                if self.header.program_rom_size == 1 {
+                    self.prg_data[(address - 0xc000) as usize] = value
+                } else {
+                    self.prg_data[(address - 0xc000 + 0x4000) as usize] = value
+                }
+            }
             _ => return Err(MemoryError::UnknownAddress),
         }
 
@@ -168,10 +175,17 @@ impl Cartridge {
     }
 
     fn read(&self, address: u16) -> Result<u8, RomError> {
+        println!("{}", self.prg_data.len());
         match address {
             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
-            0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000) as usize]), // first 16 KiB of prg rom
-            0xc000.. => Ok(self.prg_data[(address - 0xc000 + 0x4000) as usize]), // last 16 KiB of prg rom
+            0x8000..0xc000 => Ok(self.prg_data[(address & 0x7FFF) as usize]), // first 16 KiB of prg rom
+            0xc000.. => {
+                if self.header.program_rom_size == 1 {
+                    Ok(self.prg_data[(address - 0xc000) as usize])
+                } else {
+                    Ok(self.prg_data[(address - 0xc000 + 0x4000) as usize])
+                }
+            }
             _ => Err(RomError::UnknownAddress),
         }
     }
