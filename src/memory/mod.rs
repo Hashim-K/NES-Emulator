@@ -150,8 +150,8 @@ impl Cartridge {
 
     fn new(rom_bytes: &[u8]) -> Result<Cartridge, RomError> {
         let header = Self::parse_header(rom_bytes)?;
-        let mut total_length: u16 =
-            header.charactor_memory_size as u16 * 8192 + header.program_rom_size as u16 * 16384;
+        let mut total_length: u32 =
+            header.charactor_memory_size as u32 * 8192 + header.program_rom_size as u32 * 16384;
         if header.trainer {
             total_length += 512
         }
@@ -161,9 +161,18 @@ impl Cartridge {
         let prg_rom_start_index: usize = 16 + (header.trainer as usize) * 512 as usize;
         let prg_rom_end_index: usize =
             16 + (header.trainer as usize) * 512 + (header.program_rom_size as usize) * 16384;
+        println!("{:?}", prg_rom_start_index);
+        println!("{:?}", prg_rom_end_index);
         let mut cartridge_prg_rom: Vec<u8> =
             rom_bytes[prg_rom_start_index..prg_rom_end_index].to_vec();
-        let cartridge_chr_rom: Vec<u8> = rom_bytes[(prg_rom_end_index + 1)..].to_vec();
+        let mut cartridge_chr_rom: Vec<u8> = vec![];
+        if header.charactor_memory_size != 0 {
+            cartridge_chr_rom.append(&mut rom_bytes[(prg_rom_end_index + 1)..].to_vec());
+        }
+        else{
+            let chr_ram: [u8; 8192] = [0; 8192];
+            cartridge_chr_rom.append(&mut chr_ram.to_vec());
+        }
         if header.charactor_memory_size != 2 {
             cartridge_prg_rom = [
                 cartridge_prg_rom,

@@ -215,7 +215,7 @@ impl Cpu {
         value: u8,
         memory: &mut Memory,
     ) -> Result<(), MainError> {
-        memory.write_memory_byte(address, value)?;
+        memory.write(address, value)?;
         Ok(())
     }
 
