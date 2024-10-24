@@ -18,6 +18,7 @@ fn test_address_to_ppu_register() {
     assert_eq!(address_to_ppu_register(0x3fff), PpuRegister::Data);
 }
 
+#[derive(Debug)]
 pub struct Memory {
     internal_ram: [u8; 2048],
     cartridge: Cartridge,

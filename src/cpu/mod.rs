@@ -1,12 +1,11 @@
-use std::any::Any;
-use std::sync::mpsc::RecvTimeoutError;
-
 use crate::cpu::instructions::{AddressingMode, Instruction, InstructionType};
-use crate::error::{MemoryError, MyTickError};
+use crate::error::{MemoryError, MyGetCpuError, MyTickError};
 use crate::memory::Memory;
 use crate::MainError;
 use interrupt_handler::InterruptState;
 use registers::{CpuRegister, ProgramCounter, StatusRegister, StatusRegisterBit};
+use tudelft_nes_ppu::{Cpu as CpuTemplate, Ppu};
+use tudelft_nes_test::TestableCpu;
 mod instructions;
 mod interrupt_handler;
 mod registers;
@@ -36,11 +35,17 @@ pub struct Cpu {
     initialized: bool,
     branch_success: bool,
     page_crossing: bool,
+    memory: Memory,
 }
 
-impl Cpu {
-    pub fn new() -> Self {
-        Cpu {
+/// Implementing this trait allows automated tests to be run on your cpu.
+/// The crate `tudelft-nes-test` contains all kinds of small and large scale
+/// tests to find bugs in your cpu.
+impl TestableCpu for Cpu {
+    type GetCpuError = MyGetCpuError;
+
+    fn get_cpu(_rom: &[u8]) -> Result<Self, MyGetCpuError> {
+        Ok(Cpu {
             accumulator: CpuRegister::default(),
             x_register: CpuRegister::default(),
             y_register: CpuRegister::default(),
@@ -62,23 +67,55 @@ impl Cpu {
             initialized: false,
             branch_success: false,
             page_crossing: false,
-        }
+            memory: Memory::new(_rom)?,
+        })
     }
 
+    fn set_program_counter(&mut self, _value: u16) {
+        todo!()
+    }
+
+    fn memory_read(&self, _address: u16) -> u8 {
+        return self
+            .memory
+            .read(_address)
+            .expect("Could not read from memory");
+    }
+}
+
+/// See docs of `Cpu` for explanations of each function
+impl CpuTemplate for Cpu {
+    type TickError = MyTickError;
+
+    fn tick(&mut self, _ppu: &mut Ppu) -> Result<(), MyTickError> {
+        self.tick()
+    }
+
+    fn ppu_read_chr_rom(&self, _offset: u16) -> u8 {
+        self.memory
+            .read_ppu_byte(_offset)
+            .expect("Failed reading character ROM")
+    }
+
+    fn non_maskable_interrupt(&mut self) {
+        self.on_non_maskable_interrupt();
+    }
+}
+
+impl Cpu {
     fn get_operand_value(
         &mut self,
         addressing_mode: &AddressingMode,
-        memory: &mut Memory,
     ) -> Result<OperandValue, MainError> {
         let mut hh: u8 = 0;
         let mut ll: u8 = 0;
 
         match addressing_mode.length() {
             1 => (),
-            2 => ll = self.read_next_value(memory)?,
+            2 => ll = self.read_next_value()?,
             3 => {
-                ll = self.read_next_value(memory)?;
-                hh = self.read_next_value(memory)?;
+                ll = self.read_next_value()?;
+                hh = self.read_next_value()?;
             }
             _ => panic!("Unknown addressing mode"),
         }
@@ -94,7 +131,7 @@ impl Cpu {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
                 Ok(OperandValue {
                     address: Some(address),
-                    value: Some(self.memory_read(address, memory)?),
+                    value: Some(self.memory.read(address)?),
                 })
             }
 
@@ -103,7 +140,7 @@ impl Cpu {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
                 Ok(OperandValue {
                     address: Some(address + self.x_register.get() as u16),
-                    value: Some(self.memory_read(address + self.x_register.get() as u16, memory)?),
+                    value: Some(self.memory.read(address + self.x_register.get() as u16)?),
                 })
             }
 
@@ -112,7 +149,7 @@ impl Cpu {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
                 Ok(OperandValue {
                     address: Some(address + self.y_register.get() as u16),
-                    value: Some(self.memory_read(address + self.y_register.get() as u16, memory)?),
+                    value: Some(self.memory.read(address + self.y_register.get() as u16)?),
                 })
             }
 
@@ -131,36 +168,36 @@ impl Cpu {
             // ind	        indirect	            OPC ($LLHH)	    operand is address; effective address is contents of word at address: C.w($HHLL)
             AddressingMode::Indirect => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
-                let memory_ll: u8 = self.memory_read(address, memory)?;
-                let memory_hh: u8 = self.memory_read(address + 1, memory)?;
+                let memory_ll: u8 = self.memory.read(address)?;
+                let memory_hh: u8 = self.memory.read(address + 1)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
                 Ok(OperandValue {
                     address: Some(memory_address),
-                    value: Some(self.memory_read(memory_address, memory)?),
+                    value: Some(self.memory.read(memory_address)?),
                 })
             }
 
             // X,ind	    X-indexed, indirect	    OPC ($LL,X)	    operand is zeropage address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)
             AddressingMode::IndirectX => {
                 let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
-                let memory_ll: u8 = self.memory_read(address, memory)?;
-                let memory_hh: u8 = self.memory_read(address + 1, memory)?;
+                let memory_ll: u8 = self.memory.read(address)?;
+                let memory_hh: u8 = self.memory.read(address + 1)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
                 Ok(OperandValue {
                     address: Some(memory_address),
-                    value: Some(self.memory_read(memory_address, memory)?),
+                    value: Some(self.memory.read(memory_address)?),
                 })
             }
 
             // ind,Y	    indirect, Y-indexed	    OPC ($LL),Y	    operand is zeropage address; effective address is word in (LL, LL + 1) incremented by Y with carry: C.w($00LL) + Y
             AddressingMode::IndirectY => {
                 let address: u16 = ll as u16;
-                let memory_ll: u8 = self.memory_read(address, memory)? + self.y_register.get();
-                let memory_hh: u8 = self.memory_read(address + 1, memory)?;
+                let memory_ll: u8 = self.memory.read(address)? + self.y_register.get();
+                let memory_hh: u8 = self.memory.read(address + 1)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
                 Ok(OperandValue {
                     address: Some(memory_address),
-                    value: Some(self.memory_read(memory_address, memory)?),
+                    value: Some(self.memory.read(memory_address)?),
                 })
             }
 
@@ -186,7 +223,7 @@ impl Cpu {
                 let address: u16 = (0 as u16) << 8 | ll as u16;
                 Ok(OperandValue {
                     address: Some(address),
-                    value: Some(self.memory_read(address, memory)?),
+                    value: Some(self.memory.read(address)?),
                 })
             }
 
@@ -195,7 +232,7 @@ impl Cpu {
                 let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
                 Ok(OperandValue {
                     address: Some(address),
-                    value: Some(self.memory_read(address, memory)?),
+                    value: Some(self.memory.read(address)?),
                 })
             }
 
@@ -204,43 +241,28 @@ impl Cpu {
                 let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
                 Ok(OperandValue {
                     address: Some(address),
-                    value: Some(self.memory_read(address, memory)?),
+                    value: Some(self.memory.read(address)?),
                 })
             }
         }
     }
 
-    fn read_next_value(&mut self, memory: &mut Memory) -> Result<u8, MainError> {
-        let value = memory.read(self.program_counter.get())?;
+    fn read_next_value(&mut self) -> Result<u8, MainError> {
+        let value = self.memory.read(self.program_counter.get())?;
         self.program_counter.increment();
         Ok(value)
     }
 
-    fn memory_read(&self, address: u16, memory: &mut Memory) -> Result<u8, MainError> {
-        let memory_value = memory.read(address)?;
-        Ok(memory_value)
-    }
-
-    fn memory_write(
-        &mut self,
-        address: u16,
-        value: u8,
-        memory: &mut Memory,
-    ) -> Result<(), MainError> {
-        memory.write(address, value)?;
-        Ok(())
-    }
-
-    pub fn tick(&mut self, memory: &mut Memory) -> Result<(), MyTickError> {
+    pub fn tick(&mut self) -> Result<(), MyTickError> {
         // set the cpu to the startup state fi
         // println!("the clock is ticking");
         // print!("cpu: {self:?}");
         if !self.initialized {
-            self.initialize_cpu(memory)?;
+            self.initialize_cpu()?;
         }
         if self.current_cycle == self.interrupt_polling_cycle {
             // this line is for interrupt hijacking to be working later
-            let current_interrupt = self.poll_interrupts(memory, false);
+            let current_interrupt = self.poll_interrupts();
             if current_interrupt == InterruptState::IRQ
                 && self
                     .status_register
@@ -259,9 +281,9 @@ impl Cpu {
             match self.interrupt_state {
                 InterruptState::NMI => {
                     println!("Executing NMI");
-                    self.push_pc_and_status_on_stack(memory)?;
-                    let nmi_lobyte = memory.read(0xFFFA)?;
-                    let nmi_hibyte = memory.read(0xFFFB)?;
+                    self.push_pc_and_status_on_stack()?;
+                    let nmi_lobyte = self.memory.read(0xFFFA)?;
+                    let nmi_hibyte = self.memory.read(0xFFFB)?;
                     self.program_counter.set_lobyte(nmi_lobyte);
                     self.program_counter.set_hibyte(nmi_hibyte);
 
@@ -277,13 +299,13 @@ impl Cpu {
                     ();
                 }
                 InterruptState::NormalOperation => {
-                    let opcode = self.read_next_value(memory)?;
+                    let opcode = self.read_next_value()?;
                     println!("Reading opcode {:?}", opcode);
 
                     let instruction: Instruction =
                         Instruction::decode(opcode).expect("Failed decoding opcode");
                     println!("Executing instruction {:?}", instruction);
-                    instruction.execute(self, memory)?;
+                    instruction.execute(self)?;
 
                     self.instruction_cycle_count =
                         self.current_instruction.addressing_mode.length();
@@ -314,11 +336,11 @@ impl Cpu {
         if self.current_instruction.instruction_type == InstructionType::BRK
             && self.current_cycle < 4
         {
-            let current_interrupt = self.poll_interrupts(memory, false);
+            let current_interrupt = self.poll_interrupts();
             match current_interrupt {
                 InterruptState::NMI => {
-                    let nmi_lobyte = memory.read(0xFFFA)?;
-                    let nmi_hibyte = memory.read(0xFFFB)?;
+                    let nmi_lobyte = self.memory.read(0xFFFA)?;
+                    let nmi_hibyte = self.memory.read(0xFFFB)?;
                     self.program_counter.set_lobyte(nmi_lobyte);
                     self.program_counter.set_hibyte(nmi_hibyte);
 
@@ -331,8 +353,8 @@ impl Cpu {
                         .status_register
                         .get_bit(StatusRegisterBit::InterruptBit)
                     {
-                        let nmi_lobyte = memory.read(0xFFFE)?;
-                        let nmi_hibyte = memory.read(0xFFFF)?;
+                        let nmi_lobyte = self.memory.read(0xFFFE)?;
+                        let nmi_hibyte = self.memory.read(0xFFFF)?;
                         self.program_counter.set_lobyte(nmi_lobyte);
                         self.program_counter.set_hibyte(nmi_hibyte);
 
@@ -358,18 +380,18 @@ impl Cpu {
         self.nmi_line_current = true;
     }
 
-    fn push_pc_and_status_on_stack(&mut self, memory: &mut Memory) -> Result<(), MemoryError> {
-        memory.write(
+    fn push_pc_and_status_on_stack(&mut self) -> Result<(), MemoryError> {
+        self.memory.write(
             self.stack_pointer.get() as u16 + 0x0100,
             self.program_counter.get_hibyte(),
         )?;
         self.stack_pointer.decrement();
-        memory.write(
+        self.memory.write(
             self.stack_pointer.get() as u16 + 0x0100,
             self.program_counter.get_lobyte(),
         )?;
         self.stack_pointer.decrement();
-        memory.write(
+        self.memory.write(
             self.stack_pointer.get() as u16 + 0x0100,
             self.status_register.get() | 0x10,
         )?;
@@ -377,7 +399,7 @@ impl Cpu {
         Ok(())
     }
 
-    fn poll_interrupts(&mut self, memory: &mut Memory, reset_lines: bool) -> InterruptState {
+    fn poll_interrupts(&mut self) -> InterruptState {
         let return_value: InterruptState;
         if self.nmi_line_triggered {
             return_value = InterruptState::NMI;
@@ -394,10 +416,10 @@ impl Cpu {
         return_value
     }
 
-    fn initialize_cpu(&mut self, memory: &mut Memory) -> Result<(), MemoryError> {
+    fn initialize_cpu(&mut self) -> Result<(), MemoryError> {
         println!("intializing cpu");
-        let lobyte = memory.read(0xFFFC)?;
-        let hibyte = memory.read(0xFFFD)?;
+        let lobyte = self.memory.read(0xFFFC)?;
+        let hibyte = self.memory.read(0xFFFD)?;
         self.program_counter.set_lobyte(lobyte);
         self.program_counter.set_hibyte(hibyte);
         // println!("program counter set to {}", self.program_counter.get());

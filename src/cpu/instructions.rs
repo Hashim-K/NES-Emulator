@@ -1,5 +1,4 @@
 use crate::cpu::{Cpu, StatusRegisterBit};
-use crate::memory::Memory;
 use crate::MainError;
 
 #[derive(Debug)]
@@ -829,8 +828,8 @@ impl Instruction {
             .set_bit(StatusRegisterBit::NegativeBit, value & (1 << 7) > 0);
     }
 
-    pub fn execute(&self, cpu: &mut Cpu, memory: &mut Memory) -> Result<(), MainError> {
-        let operand_value = cpu.get_operand_value(&self.addressing_mode, memory)?;
+    pub fn execute(&self, cpu: &mut Cpu) -> Result<(), MainError> {
+        let operand_value = cpu.get_operand_value(&self.addressing_mode)?;
         match self.instruction_type {
             InstructionType::LDA => {
                 let value = operand_value.value.expect("LDA operand value is None");
@@ -858,21 +857,18 @@ impl Instruction {
 
             InstructionType::STA => {
                 let address: u16 = operand_value.address.expect("STA Address is None");
-                // cpu.memory_write(address, cpu.accumulator.get(), memory)?;
-                memory.write(address, cpu.accumulator.get())?;
+                cpu.memory.write(address, cpu.accumulator.get())?;
                 Ok(())
             }
             InstructionType::STX => {
                 let address: u16 = operand_value.address.expect("STX Address is None");
-                // cpu.memory_write(address, cpu.x_register.get(), memory)?;
-                memory.write(address, cpu.x_register.get())?;
+                cpu.memory.write(address, cpu.x_register.get())?;
                 Ok(())
             }
 
             InstructionType::STY => {
                 let address: u16 = operand_value.address.expect("STY Address is None");
-                // cpu.memory_write(address, cpu.y_register.get(), memory)?;
-                memory.write(address, cpu.y_register.get())?;
+                cpu.memory.write(address, cpu.y_register.get())?;
                 Ok(())
             }
 
@@ -920,14 +916,14 @@ impl Instruction {
 
             InstructionType::PHA => {
                 let address = 0x0100 + cpu.stack_pointer.get() as u16;
-                memory.write(address, cpu.accumulator.get())?;
+                cpu.memory.write(address, cpu.accumulator.get())?;
                 cpu.stack_pointer.decrement();
                 Ok(())
             }
 
             InstructionType::PHP => {
                 let address = 0x0100 + cpu.stack_pointer.get() as u16;
-                memory.write(address, cpu.status_register.get())?;
+                cpu.memory.write(address, cpu.status_register.get())?;
                 cpu.stack_pointer.decrement();
                 Ok(())
             }
@@ -935,7 +931,7 @@ impl Instruction {
             InstructionType::PLA => {
                 cpu.stack_pointer.increment();
                 let address = 0x0100 + cpu.stack_pointer.get() as u16;
-                cpu.accumulator.set(memory.read(address)?);
+                cpu.accumulator.set(cpu.memory.read(address)?);
                 Self::set_status_if_zero(cpu.accumulator.get(), cpu);
                 Self::set_status_if_negative(cpu.accumulator.get(), cpu);
                 Ok(())
@@ -944,7 +940,7 @@ impl Instruction {
             InstructionType::PLP => {
                 cpu.stack_pointer.increment();
                 let address = 0x0100 + cpu.stack_pointer.get() as u16;
-                let value = memory.read(address)?;
+                let value = cpu.memory.read(address)?;
                 cpu.status_register.set_from_stack(value);
                 Ok(())
             }
@@ -953,8 +949,8 @@ impl Instruction {
                 let address = operand_value.address.expect("INC Address is None");
                 let value = operand_value.value.expect("INC value is None");
                 let new_value = value.wrapping_add(1);
-                // cpu.memory_write(address, new_value, memory)?;
-                memory.write(address, new_value)?;
+                // cpu.cpu.memory.write(address, new_value, cpu.memory.?;
+                cpu.memory.write(address, new_value)?;
                 Self::set_status_if_zero(new_value, cpu);
                 Self::set_status_if_negative(new_value, cpu);
                 Ok(())
@@ -979,8 +975,8 @@ impl Instruction {
                 let address = operand_value.address.expect("DEC Address is None");
                 let value = operand_value.value.expect("DEC value is None");
                 let new_value = value.wrapping_sub(1);
-                // cpu.memory_write(address, new_value, memory)?;
-                memory.write(address, new_value)?;
+                // cpu.cpu.memory.write(address, new_value, cpu.memory.?;
+                cpu.memory.write(address, new_value)?;
                 Self::set_status_if_zero(new_value, cpu);
                 Self::set_status_if_negative(new_value, cpu);
                 Ok(())
@@ -1110,7 +1106,7 @@ impl Instruction {
                 Self::set_status_if_negative(result, cpu);
 
                 if let Some(address) = operand_value.address {
-                    memory.write(address, result)?;
+                    cpu.memory.write(address, result)?;
                 } else {
                     cpu.accumulator.set(result)
                 }
@@ -1126,7 +1122,7 @@ impl Instruction {
                 Self::set_status_if_negative(result, cpu);
 
                 if let Some(address) = operand_value.address {
-                    memory.write(address, result)?;
+                    cpu.memory.write(address, result)?;
                 } else {
                     cpu.accumulator.set(result)
                 }
@@ -1143,7 +1139,7 @@ impl Instruction {
                 Self::set_status_if_negative(result, cpu);
 
                 if let Some(address) = operand_value.address {
-                    memory.write(address, result)?;
+                    cpu.memory.write(address, result)?;
                 } else {
                     cpu.accumulator.set(result)
                 }
@@ -1160,7 +1156,7 @@ impl Instruction {
                 Self::set_status_if_negative(result, cpu);
 
                 if let Some(address) = operand_value.address {
-                    memory.write(address, result)?;
+                    cpu.memory.write(address, result)?;
                 } else {
                     cpu.accumulator.set(result)
                 }
@@ -1337,12 +1333,12 @@ impl Instruction {
             }
 
             InstructionType::JSR => {
-                memory.write(
+                cpu.memory.write(
                     cpu.stack_pointer.get() as u16 + 0x0100,
                     cpu.program_counter.get_hibyte(),
                 )?;
                 cpu.stack_pointer.decrement();
-                memory.write(
+                cpu.memory.write(
                     cpu.stack_pointer.get() as u16 + 0x0100,
                     cpu.program_counter.get_lobyte(),
                 )?;
@@ -1354,35 +1350,35 @@ impl Instruction {
 
             InstructionType::RTS => {
                 cpu.stack_pointer.increment();
-                let lobyte = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                let lobyte = cpu.memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
                 cpu.program_counter.set_lobyte(lobyte);
 
                 cpu.stack_pointer.increment();
-                let hibyte = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                let hibyte = cpu.memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
                 cpu.program_counter.set_hibyte(hibyte);
                 Ok(())
             }
 
             InstructionType::BRK => {
                 cpu.program_counter.increment();
-                memory.write(
+                cpu.memory.write(
                     cpu.stack_pointer.get() as u16 + 0x0100,
                     cpu.program_counter.get_hibyte(),
                 )?;
                 cpu.stack_pointer.decrement();
-                memory.write(
+                cpu.memory.write(
                     cpu.stack_pointer.get() as u16 + 0x0100,
                     cpu.program_counter.get_lobyte(),
                 )?;
                 cpu.stack_pointer.decrement();
-                memory.write(
+                cpu.memory.write(
                     cpu.stack_pointer.get() as u16 + 0x0100,
                     cpu.status_register.get(),
                 )?;
                 cpu.stack_pointer.decrement();
 
-                cpu.program_counter.set_lobyte(memory.read(0xFFFE)?);
-                cpu.program_counter.set_hibyte(memory.read(0xFFFF)?);
+                cpu.program_counter.set_lobyte(cpu.memory.read(0xFFFE)?);
+                cpu.program_counter.set_hibyte(cpu.memory.read(0xFFFF)?);
                 cpu.status_register
                     .set_bit(StatusRegisterBit::InterruptBit, true);
                 Ok(())
@@ -1390,15 +1386,16 @@ impl Instruction {
 
             InstructionType::RTI => {
                 cpu.stack_pointer.increment();
-                let status_register_value = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                let status_register_value =
+                    cpu.memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
                 cpu.status_register.set_from_stack(status_register_value);
 
                 cpu.stack_pointer.increment();
-                let lobyte = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                let lobyte = cpu.memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
                 cpu.program_counter.set_lobyte(lobyte);
 
                 cpu.stack_pointer.increment();
-                let hibyte = memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
+                let hibyte = cpu.memory.read(cpu.stack_pointer.get() as u16 + 0x0100)?;
                 cpu.program_counter.set_hibyte(hibyte);
                 Ok(())
             }

@@ -1,9 +1,9 @@
+use cpu::Cpu;
 use error::MainError;
 use log::LevelFilter;
 use std::env;
 use std::fs;
 use std::process::ExitCode;
-use system::System;
 use tudelft_nes_ppu::{run_cpu, Mirroring};
 use tudelft_nes_test::TestableCpu;
 use tudelft_nes_test::ROM_NROM_TEST;
@@ -11,12 +11,11 @@ use tudelft_nes_test::ROM_NROM_TEST;
 mod cpu;
 mod error;
 mod memory;
-mod system;
 
 fn run(file_bytes: &[u8]) -> Result<(), MainError> {
     env_logger::builder().filter_level(LevelFilter::Info).init();
 
-    let cpu = System::get_cpu(file_bytes)?;
+    let cpu = Cpu::get_cpu(file_bytes)?;
 
     log::info!("running cpu");
     run_cpu(cpu, Mirroring::Horizontal);
@@ -48,28 +47,28 @@ fn main() -> ExitCode {
 
 #[cfg(test)]
 mod tests {
-    use crate::system::System;
+    use crate::cpu::Cpu;
     use log::LevelFilter;
     use tudelft_nes_test::{run_tests, TestSelector};
 
     #[test]
     fn test_nrom() {
         env_logger::builder().filter_level(LevelFilter::Info).init();
-        let result = run_tests::<System>(TestSelector::NROM_TEST);
+        let result = run_tests::<Cpu>(TestSelector::NROM_TEST);
         assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
     }
 
     #[ignore]
     #[test]
     fn test_official_instructions() {
-        let result = run_tests::<System>(TestSelector::OFFICIAL_INSTRS);
+        let result = run_tests::<Cpu>(TestSelector::OFFICIAL_INSTRS);
         assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
     }
 
     #[ignore]
     #[test]
     fn test_nestest() {
-        let result = run_tests::<System>(TestSelector::NESTEST);
+        let result = run_tests::<Cpu>(TestSelector::NESTEST);
         assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
     }
 }
