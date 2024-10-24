@@ -220,7 +220,6 @@ impl Cpu {
     }
 
     pub fn tick(&mut self, memory: &mut Memory) -> Result<(), MyTickError> {
-
         if self.current_cycle > self.instruction_cycle_count {
             self.current_cycle = 1;
 
@@ -243,5 +242,4 @@ impl Cpu {
 
         Ok(())
     }
-
 }
