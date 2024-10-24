@@ -811,6 +811,127 @@ impl Instruction {
         }
     }
 
+    // Return the number of cycles the instruction will take
+    fn get_instruction_duration(opcode: u8, instruction: Instruction) -> Result<u8, MainError> {
+        let cc: u8 = opcode & 0b11;
+        match instruction {
+            //EXCEPTIONS
+
+            //JUMPS
+            Instruction {
+                instruction_type: InstructionType::JMP,
+                addressing_mode: AddressingMode::Absolute,
+            } => return Ok(3),
+
+            Instruction {
+                instruction_type: InstructionType::JMP,
+                addressing_mode: AddressingMode::Indirect,
+            } => return Ok(5),
+
+            Instruction {
+                instruction_type: InstructionType::JSR,
+                addressing_mode: AddressingMode::Absolute,
+            } => return Ok(6),
+
+            //IMPLIED
+            Instruction {
+                instruction_type: InstructionType::BRK,
+                addressing_mode: AddressingMode::Implied,
+            } => return Ok(7),
+
+            Instruction {
+                instruction_type: InstructionType::PHA | InstructionType::PHP,
+                addressing_mode: AddressingMode::Implied,
+            } => return Ok(3),
+
+            Instruction {
+                instruction_type: InstructionType::PLA | InstructionType::PLP,
+                addressing_mode: AddressingMode::Implied,
+            } => return Ok(4),
+
+            Instruction {
+                instruction_type: InstructionType::RTI | InstructionType::RTS,
+                addressing_mode: AddressingMode::Implied,
+            } => return Ok(6),
+
+            //LDX
+            Instruction {
+                instruction_type: InstructionType::LDX,
+                addressing_mode: AddressingMode::ZeroPage,
+            } => return Ok(3),
+
+            Instruction {
+                instruction_type: InstructionType::LDX,
+                addressing_mode:
+                    AddressingMode::ZeroPageY | AddressingMode::Absolute | AddressingMode::AbsoluteY,
+            } => return Ok(4),
+
+            //STX
+            Instruction {
+                instruction_type: InstructionType::STX,
+                addressing_mode: AddressingMode::ZeroPage,
+            } => return Ok(3),
+
+            Instruction {
+                instruction_type: InstructionType::STX,
+                addressing_mode: AddressingMode::ZeroPageY | AddressingMode::Absolute,
+            } => return Ok(4),
+
+            _ => match cc {
+                0b00 => match instruction.addressing_mode {
+                    AddressingMode::Absolute => return Ok(4),
+                    AddressingMode::AbsoluteX => return Ok(4),
+                    AddressingMode::Immediate => return Ok(2),
+                    AddressingMode::Implied => return Ok(2),
+                    AddressingMode::Relative => return Ok(2),
+                    AddressingMode::ZeroPage => return Ok(3),
+                    AddressingMode::ZeroPageX => return Ok(4),
+                    _ => return Err(MainError::OpcodeError),
+                },
+                0b01 => match instruction.addressing_mode {
+                    AddressingMode::Absolute => return Ok(4),
+                    AddressingMode::AbsoluteX => return Ok(4),
+                    AddressingMode::AbsoluteY => return Ok(4),
+                    AddressingMode::Immediate => return Ok(2),
+                    AddressingMode::IndirectX => return Ok(6),
+                    AddressingMode::IndirectY => return Ok(5),
+                    AddressingMode::ZeroPage => return Ok(3),
+                    AddressingMode::ZeroPageX => return Ok(4),
+                    _ => return Err(MainError::OpcodeError),
+                },
+                0b10 => match instruction.addressing_mode {
+                    AddressingMode::Accumulator => return Ok(2),
+                    AddressingMode::Absolute => return Ok(6),
+                    AddressingMode::AbsoluteX => return Ok(7),
+                    AddressingMode::AbsoluteY => return Ok(7),
+                    AddressingMode::Immediate => return Ok(2),
+                    AddressingMode::Implied => return Ok(2),
+                    AddressingMode::ZeroPage => return Ok(5),
+                    AddressingMode::ZeroPageX => return Ok(6),
+                    AddressingMode::ZeroPageY => return Ok(6),
+                    _ => return Err(MainError::OpcodeError),
+                },
+                0b11 => match instruction.addressing_mode {
+                    // AddressingMode::Accumulator => ,
+                    // AddressingMode::Absolute => ,
+                    // AddressingMode::AbsoluteX => ,
+                    // AddressingMode::AbsoluteY => ,
+                    // AddressingMode::Immediate => ,
+                    // AddressingMode::Implied => ,
+                    // AddressingMode::Indirect => ,
+                    // AddressingMode::IndirectX => ,
+                    // AddressingMode::IndirectY => ,
+                    // AddressingMode::Relative => ,
+                    // AddressingMode::ZeroPage => ,
+                    // AddressingMode::ZeroPageX => ,
+                    // AddressingMode::ZeroPageY => ,
+                    _ => return Err(MainError::OpcodeError),
+                },
+                _ => return Err(MainError::OpcodeError),
+            },
+        }
+    }
+
     // Set zero bit if the number read is 0
     fn set_status_if_zero(value: u8, cpu: &mut Cpu) {
         if value == 0 {
