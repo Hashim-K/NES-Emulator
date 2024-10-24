@@ -371,7 +371,7 @@ impl Cpu {
             self.nmi_line_triggered = true;
         }
         self.current_cycle += 1;
-        self.nmi_line_prev = self.nmi_line_prev;
+        self.nmi_line_prev = self.nmi_line_current;
         self.nmi_line_current = false;
         Ok(())
     }
