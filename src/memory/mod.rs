@@ -77,10 +77,6 @@ impl Memory {
         }
         return value;
     }
-
-    pub fn get_mirroring(&self) -> Mirroring {
-        self.cartridge.header.mirroring
-    }
 }
 
 #[derive(Debug, PartialEq)]
