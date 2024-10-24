@@ -78,7 +78,7 @@ impl TestableCpu for Cpu {
     fn memory_read(&self, _address: u16) -> u8 {
         return self
             .memory
-            .read(_address)
+            .read_cpu_mem(_address)
             .expect("Could not read from memory");
     }
 }
@@ -87,12 +87,12 @@ impl TestableCpu for Cpu {
 impl CpuTemplate for Cpu {
     type TickError = MyTickError;
 
-    fn tick(&mut self, _ppu: &mut Ppu) -> Result<(), MyTickError> {
+    fn tick(&mut self, ppu: &mut Ppu) -> Result<(), MyTickError> {
         // set the cpu to the startup state fi
         // println!("the clock is ticking");
         // print!("cpu: {self:?}");
         if !self.initialized {
-            self.initialize_cpu()?;
+            self.initialize_cpu(ppu)?;
         }
         if self.current_cycle == self.interrupt_polling_cycle {
             // this line is for interrupt hijacking to be working later
@@ -115,9 +115,9 @@ impl CpuTemplate for Cpu {
             match self.interrupt_state {
                 InterruptState::NMI => {
                     println!("Executing NMI");
-                    self.push_pc_and_status_on_stack()?;
-                    let nmi_lobyte = self.memory.read(0xFFFA)?;
-                    let nmi_hibyte = self.memory.read(0xFFFB)?;
+                    self.push_pc_and_status_on_stack(ppu)?;
+                    let nmi_lobyte = self.memory.read(0xFFFA, self, ppu)?;
+                    let nmi_hibyte = self.memory.read(0xFFFB, self, ppu)?;
                     self.program_counter.set_lobyte(nmi_lobyte);
                     self.program_counter.set_hibyte(nmi_hibyte);
 
@@ -132,13 +132,13 @@ impl CpuTemplate for Cpu {
                     todo!("Add interface for IRQ")
                 }
                 InterruptState::NormalOperation => {
-                    let opcode = self.read_next_value()?;
+                    let opcode = self.read_next_value(ppu)?;
                     println!("Reading opcode {:?}", opcode);
 
                     let instruction: Instruction =
                         Instruction::decode(opcode).expect("Failed decoding opcode");
                     println!("Executing instruction {:?}", instruction);
-                    instruction.execute(self)?;
+                    instruction.execute(self, ppu)?;
 
                     self.instruction_cycle_count =
                         self.current_instruction.addressing_mode.length();
@@ -172,8 +172,8 @@ impl CpuTemplate for Cpu {
             let current_interrupt = self.poll_interrupts();
             match current_interrupt {
                 InterruptState::NMI => {
-                    let nmi_lobyte = self.memory.read(0xFFFA)?;
-                    let nmi_hibyte = self.memory.read(0xFFFB)?;
+                    let nmi_lobyte = self.memory.read(0xFFFA, self, ppu)?;
+                    let nmi_hibyte = self.memory.read(0xFFFB, self, ppu)?;
                     self.program_counter.set_lobyte(nmi_lobyte);
                     self.program_counter.set_hibyte(nmi_hibyte);
 
@@ -186,8 +186,8 @@ impl CpuTemplate for Cpu {
                         .status_register
                         .get_bit(StatusRegisterBit::InterruptBit)
                     {
-                        let nmi_lobyte = self.memory.read(0xFFFE)?;
-                        let nmi_hibyte = self.memory.read(0xFFFF)?;
+                        let nmi_lobyte = self.memory.read(0xFFFE, self, ppu)?;
+                        let nmi_hibyte = self.memory.read(0xFFFF, self, ppu)?;
                         self.program_counter.set_lobyte(nmi_lobyte);
                         self.program_counter.set_hibyte(nmi_hibyte);
 
@@ -224,16 +224,17 @@ impl Cpu {
     fn get_operand_value(
         &mut self,
         addressing_mode: &AddressingMode,
+        ppu: &mut Ppu,
     ) -> Result<OperandValue, MainError> {
         let mut hh: u8 = 0;
         let mut ll: u8 = 0;
 
         match addressing_mode.length() {
             1 => (),
-            2 => ll = self.read_next_value()?,
+            2 => ll = self.read_next_value(ppu)?,
             3 => {
-                ll = self.read_next_value()?;
-                hh = self.read_next_value()?;
+                ll = self.read_next_value(ppu)?;
+                hh = self.read_next_value(ppu)?;
             }
             _ => panic!("Unknown addressing mode"),
         }
@@ -249,7 +250,7 @@ impl Cpu {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
                 Ok(OperandValue {
                     address: Some(address),
-                    value: Some(self.memory.read(address)?),
+                    value: Some(self.memory.read(address, self, ppu)?),
                 })
             }
 
@@ -258,7 +259,11 @@ impl Cpu {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
                 Ok(OperandValue {
                     address: Some(address + self.x_register.get() as u16),
-                    value: Some(self.memory.read(address + self.x_register.get() as u16)?),
+                    value: Some(self.memory.read(
+                        address + self.x_register.get() as u16,
+                        self,
+                        ppu,
+                    )?),
                 })
             }
 
@@ -267,7 +272,11 @@ impl Cpu {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
                 Ok(OperandValue {
                     address: Some(address + self.y_register.get() as u16),
-                    value: Some(self.memory.read(address + self.y_register.get() as u16)?),
+                    value: Some(self.memory.read(
+                        address + self.y_register.get() as u16,
+                        self,
+                        ppu,
+                    )?),
                 })
             }
 
@@ -286,36 +295,36 @@ impl Cpu {
             // ind	        indirect	            OPC ($LLHH)	    operand is address; effective address is contents of word at address: C.w($HHLL)
             AddressingMode::Indirect => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
-                let memory_ll: u8 = self.memory.read(address)?;
-                let memory_hh: u8 = self.memory.read(address + 1)?;
+                let memory_ll: u8 = self.memory.read(address, self, ppu)?;
+                let memory_hh: u8 = self.memory.read(address + 1, self, ppu)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
                 Ok(OperandValue {
                     address: Some(memory_address),
-                    value: Some(self.memory.read(memory_address)?),
+                    value: Some(self.memory.read(memory_address, self, ppu)?),
                 })
             }
 
             // X,ind	    X-indexed, indirect	    OPC ($LL,X)	    operand is zeropage address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)
             AddressingMode::IndirectX => {
                 let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
-                let memory_ll: u8 = self.memory.read(address)?;
-                let memory_hh: u8 = self.memory.read(address + 1)?;
+                let memory_ll: u8 = self.memory.read(address, self, ppu)?;
+                let memory_hh: u8 = self.memory.read(address + 1, self, ppu)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
                 Ok(OperandValue {
                     address: Some(memory_address),
-                    value: Some(self.memory.read(memory_address)?),
+                    value: Some(self.memory.read(memory_address, self, ppu)?),
                 })
             }
 
             // ind,Y	    indirect, Y-indexed	    OPC ($LL),Y	    operand is zeropage address; effective address is word in (LL, LL + 1) incremented by Y with carry: C.w($00LL) + Y
             AddressingMode::IndirectY => {
                 let address: u16 = ll as u16;
-                let memory_ll: u8 = self.memory.read(address)? + self.y_register.get();
-                let memory_hh: u8 = self.memory.read(address + 1)?;
+                let memory_ll: u8 = self.memory.read(address, self, ppu)? + self.y_register.get();
+                let memory_hh: u8 = self.memory.read(address + 1, self, ppu)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
                 Ok(OperandValue {
                     address: Some(memory_address),
-                    value: Some(self.memory.read(memory_address)?),
+                    value: Some(self.memory.read(memory_address, self, ppu)?),
                 })
             }
 
@@ -341,7 +350,7 @@ impl Cpu {
                 let address: u16 = (0 as u16) << 8 | ll as u16;
                 Ok(OperandValue {
                     address: Some(address),
-                    value: Some(self.memory.read(address)?),
+                    value: Some(self.memory.read(address, self, ppu)?),
                 })
             }
 
@@ -350,7 +359,7 @@ impl Cpu {
                 let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
                 Ok(OperandValue {
                     address: Some(address),
-                    value: Some(self.memory.read(address)?),
+                    value: Some(self.memory.read(address, self, ppu)?),
                 })
             }
 
@@ -359,14 +368,14 @@ impl Cpu {
                 let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
                 Ok(OperandValue {
                     address: Some(address),
-                    value: Some(self.memory.read(address)?),
+                    value: Some(self.memory.read(address, self, ppu)?),
                 })
             }
         }
     }
 
-    fn read_next_value(&mut self) -> Result<u8, MainError> {
-        let value = self.memory.read(self.program_counter.get())?;
+    fn read_next_value(&mut self, ppu: &mut Ppu) -> Result<u8, MainError> {
+        let value = self.memory.read(self.program_counter.get(), self, ppu)?;
         self.program_counter.increment();
         Ok(value)
     }
@@ -375,20 +384,23 @@ impl Cpu {
         self.nmi_line_current = true;
     }
 
-    fn push_pc_and_status_on_stack(&mut self) -> Result<(), MemoryError> {
+    fn push_pc_and_status_on_stack(&mut self, ppu: &mut Ppu) -> Result<(), MemoryError> {
         self.memory.write(
             self.stack_pointer.get() as u16 + 0x0100,
             self.program_counter.get_hibyte(),
+            ppu,
         )?;
         self.stack_pointer.decrement();
         self.memory.write(
             self.stack_pointer.get() as u16 + 0x0100,
             self.program_counter.get_lobyte(),
+            ppu,
         )?;
         self.stack_pointer.decrement();
         self.memory.write(
             self.stack_pointer.get() as u16 + 0x0100,
             self.status_register.get() | 0x10,
+            ppu,
         )?;
         self.stack_pointer.decrement();
         Ok(())
@@ -411,10 +423,10 @@ impl Cpu {
         return_value
     }
 
-    fn initialize_cpu(&mut self) -> Result<(), MemoryError> {
+    fn initialize_cpu(&mut self, ppu: &mut Ppu) -> Result<(), MemoryError> {
         println!("intializing cpu");
-        let lobyte = self.memory.read(0xFFFC)?;
-        let hibyte = self.memory.read(0xFFFD)?;
+        let lobyte = self.memory.read(0xFFFC, self, ppu)?;
+        let hibyte = self.memory.read(0xFFFD, self, ppu)?;
         self.program_counter.set_lobyte(lobyte);
         self.program_counter.set_hibyte(hibyte);
         // println!("program counter set to {}", self.program_counter.get());
