@@ -129,8 +129,7 @@ impl CpuTemplate for Cpu {
                     //     .set_bit(StatusRegisterBit::InterruptBit, true);
                 }
                 InterruptState::IRQ => {
-                    // TODO: interface for irq
-                    ();
+                    todo!("Add interface for IRQ")
                 }
                 InterruptState::NormalOperation => {
                     let opcode = self.read_next_value()?;
