@@ -42,4 +42,7 @@ pub enum MainError {
 
     #[error("Memory Error occurred: {0}")]
     MemoryError(#[from] MemoryError),
+
+    #[error("Opcode Error occurred: {0}")]
+    OpcodeError,
 }
