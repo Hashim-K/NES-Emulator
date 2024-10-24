@@ -84,14 +84,14 @@ impl Memory {
 }
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
-pub enum ProgramBankMode{
+pub enum ProgramBankMode {
     Fullswitch,
     Fixfirst,
     Fixlast,
 }
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
-pub enum CharacterBankMode{
+pub enum CharacterBankMode {
     Fullswitch,
     Halfswitch,
 }
@@ -150,18 +150,26 @@ impl Cartridge {
 
     fn new(rom_bytes: &[u8]) -> Result<Cartridge, RomError> {
         let header = Self::parse_header(rom_bytes)?;
-        let mut total_length: u16 = header.charactor_memory_size as u16 * 8192 + header.program_rom_size as u16 * 16384;
-        if header.trainer{total_length += 512}
-        if rom_bytes[16..].len() != total_length as usize
-        {
+        let mut total_length: u16 =
+            header.charactor_memory_size as u16 * 8192 + header.program_rom_size as u16 * 16384;
+        if header.trainer {
+            total_length += 512
+        }
+        if rom_bytes[16..].len() != total_length as usize {
             return Err(RomError::IncorrectDataSize);
         }
         let prg_rom_start_index: usize = 16 + (header.trainer as usize) * 512 as usize;
-        let prg_rom_end_index: usize = 16 + (header.trainer as usize) * 512 + (header.program_rom_size as usize) * 16384;
-        let mut cartridge_prg_rom: Vec<u8> = rom_bytes[prg_rom_start_index..prg_rom_end_index].to_vec();
-        let cartridge_chr_rom: Vec<u8> = rom_bytes[(prg_rom_end_index+1)..].to_vec();
+        let prg_rom_end_index: usize =
+            16 + (header.trainer as usize) * 512 + (header.program_rom_size as usize) * 16384;
+        let mut cartridge_prg_rom: Vec<u8> =
+            rom_bytes[prg_rom_start_index..prg_rom_end_index].to_vec();
+        let cartridge_chr_rom: Vec<u8> = rom_bytes[(prg_rom_end_index + 1)..].to_vec();
         if header.charactor_memory_size != 2 {
-            cartridge_prg_rom = [cartridge_prg_rom, rom_bytes[prg_rom_start_index..prg_rom_end_index].to_vec()].concat();
+            cartridge_prg_rom = [
+                cartridge_prg_rom,
+                rom_bytes[prg_rom_start_index..prg_rom_end_index].to_vec(),
+            ]
+            .concat();
         }
         Ok(Cartridge {
             header,
@@ -189,11 +197,10 @@ impl Cartridge {
                     _ => return Err(MemoryError::UnknownAddress),
                 }
             }
-            1 => {  
+            1 => {
                 if (self.shift_register & 1) != 1 {
                     self.shift_register = (self.shift_register >> 1) + ((value & 1) << 4)
-                }
-                else{
+                } else {
                     match address {
                         0x8000..0xa000 => {
                             match self.shift_register & 3 {
@@ -204,18 +211,17 @@ impl Cartridge {
                                 _ => return Err(MemoryError::ShiftAddressError),
                             }
                             match (self.shift_register >> 2) & 3 {
-                                0 | 1 => self. prg_bank_mode = ProgramBankMode::Fullswitch,
-                                2 => self. prg_bank_mode = ProgramBankMode::Fixfirst,
-                                3 => self. prg_bank_mode = ProgramBankMode::Fixlast,
+                                0 | 1 => self.prg_bank_mode = ProgramBankMode::Fullswitch,
+                                2 => self.prg_bank_mode = ProgramBankMode::Fixfirst,
+                                3 => self.prg_bank_mode = ProgramBankMode::Fixlast,
                                 _ => return Err(MemoryError::ShiftAddressError),
                             }
                             if (self.shift_register >> 4) & 1 == 0 {
                                 self.chr_bank_mode = CharacterBankMode::Fullswitch
-                            }
-                            else{
+                            } else {
                                 self.chr_bank_mode = CharacterBankMode::Halfswitch
                             }
-                        },
+                        }
                         0xa000..0xc000 => self.chr_bank_0 = self.shift_register,
                         0xc000..0xe000 => self.chr_bank_1 = self.shift_register,
                         0xe000.. => self.prg_bank = self.shift_register,
@@ -245,7 +251,8 @@ impl Cartridge {
                         let banknr = self.prg_bank >> 1;
                         match address {
                             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
-                            0x8000.. => Ok(self.prg_data[(address - 0x8000 + ((banknr - 1) as u16) * 16384) as usize]), // switch in 32kb blocks
+                            0x8000.. => Ok(self.prg_data
+                                [(address - 0x8000 + ((banknr - 1) as u16) * 16384) as usize]), // switch in 32kb blocks
                             _ => return Err(RomError::UnknownAddress),
                         }
                     }
@@ -253,15 +260,23 @@ impl Cartridge {
                         match address {
                             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
                             0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000) as usize]), // fix first bank to 0x8000
-                            0xc000.. => Ok(self.prg_data[(address - 0xc000 + 0x4000 + ((self.prg_bank - 1) as u16) * 16384) as usize]), // make 0x8000 - 0xc000 switchable
+                            0xc000.. => Ok(self.prg_data[(address - 0xc000
+                                + 0x4000
+                                + ((self.prg_bank - 1) as u16) * 16384)
+                                as usize]), // make 0x8000 - 0xc000 switchable
                             _ => return Err(RomError::UnknownAddress),
                         }
                     }
                     ProgramBankMode::Fixlast => {
                         match address {
                             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
-                            0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000 + ((self.prg_bank - 1) as u16) * 16384) as usize]), // make 0x8000 - 0xc000 switchable
-                            0xc000.. => Ok(self.prg_data[(address - 0xc000 + 0x4000 + (self.header.program_rom_size as u16) * 16384) as usize]), // Fix last bank to 0xc000
+                            0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000
+                                + ((self.prg_bank - 1) as u16) * 16384)
+                                as usize]), // make 0x8000 - 0xc000 switchable
+                            0xc000.. => Ok(self.prg_data[(address - 0xc000
+                                + 0x4000
+                                + (self.header.program_rom_size as u16) * 16384)
+                                as usize]), // Fix last bank to 0xc000
                             _ => return Err(RomError::UnknownAddress),
                         }
                     }

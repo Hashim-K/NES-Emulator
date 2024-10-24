@@ -57,7 +57,7 @@ mod tests {
     #[test]
     fn test_nrom() {
         env_logger::builder().filter_level(LevelFilter::Info).init();
-        let result = run_tests::<System>(TestSelector::NROM_TEST);
+        let result = run_tests::<System>(TestSelector::OFFICIAL_INSTRS);
         assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
     }
 
