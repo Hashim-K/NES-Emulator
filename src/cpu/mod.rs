@@ -76,10 +76,10 @@ impl TestableCpu for Cpu {
     }
 
     fn memory_read(&self, _address: u16) -> u8 {
-        return self
+        self
             .memory
             .read_cpu_mem(_address)
-            .expect("Could not read from memory");
+            .expect("Could not read from memory")
     }
 }
 
@@ -347,7 +347,7 @@ impl Cpu {
 
             // zpg	        zeropage	            OPC $LL	        operand is zeropage address (hi-byte is zero, address = $00LL)
             AddressingMode::ZeroPage => {
-                let address: u16 = (0 as u16) << 8 | ll as u16;
+                let address: u16 = 0_u16 << 8 | ll as u16;
                 Ok(OperandValue {
                     address: Some(address),
                     value: Some(self.memory.read(address, self, ppu)?),

@@ -31,7 +31,7 @@ impl StatusRegister {
     }
 
     pub(crate) fn get(self) -> u8 {
-        (self.carry_bit as u8) << 0
+        (self.carry_bit as u8)
             | (self.zero_bit as u8) << 1
             | (self.interrupt_bit as u8) << 2
             | (self.decimal_bit as u8) << 3
@@ -73,18 +73,18 @@ pub(crate) struct CpuRegister {
 
 impl CpuRegister {
     pub(crate) fn get(&self) -> u8 {
-        return self.binary_value;
+        self.binary_value
     }
 
-    pub(crate) fn set(&mut self, value: u8) -> () {
+    pub(crate) fn set(&mut self, value: u8) {
         self.binary_value = value;
     }
 
-    pub(crate) fn increment(&mut self) -> () {
+    pub(crate) fn increment(&mut self) {
         self.binary_value = self.binary_value.wrapping_add(1);
     }
 
-    pub(crate) fn decrement(&mut self) -> () {
+    pub(crate) fn decrement(&mut self) {
         self.binary_value = self.binary_value.wrapping_sub(1);
     }
 }
@@ -96,19 +96,19 @@ pub(crate) struct ProgramCounter {
 
 impl ProgramCounter {
     pub(crate) fn get(&self) -> u16 {
-        return self.binary_value;
+        self.binary_value
     }
 
-    pub(crate) fn set(&mut self, value: u16) -> () {
+    pub(crate) fn set(&mut self, value: u16) {
         self.binary_value = value;
     }
 
     pub(crate) fn get_lobyte(&self) -> u8 {
-        return self.binary_value as u8;
+        self.binary_value as u8
     }
 
     pub(crate) fn get_hibyte(&self) -> u8 {
-        return (self.binary_value >> 8) as u8;
+        (self.binary_value >> 8) as u8
     }
 
     pub(crate) fn set_lobyte(&mut self, value: u8) {
@@ -119,7 +119,7 @@ impl ProgramCounter {
         self.binary_value = (self.binary_value & 0x00FF) | ((value as u16) << 8);
     }
 
-    pub(crate) fn increment(&mut self) -> () {
+    pub(crate) fn increment(&mut self) {
         self.binary_value = self.binary_value.wrapping_add(1);
     }
 

@@ -39,7 +39,7 @@ impl Memory {
     }
 
     pub fn read_ppu_byte(&self, address: u16) -> Result<u8, MemoryError> {
-        return Ok(self.cartridge.chr_data[address as usize]);
+        Ok(self.cartridge.chr_data[address as usize])
     }
 
     pub fn write(&mut self, address: u16, value: u8, ppu: &mut Ppu) -> Result<(), MemoryError> {
@@ -66,7 +66,7 @@ impl Memory {
             _ => self.read_cpu_mem(address),
         };
 
-        return value;
+        value
     }
 
     pub fn read_cpu_mem(&self, address: u16) -> Result<u8, MemoryError> {
@@ -88,7 +88,7 @@ impl Memory {
         } else {
             println!("Read memory byte at address {}: FAILED", address);
         }
-        return value;
+        value
     }
 }
 
@@ -147,12 +147,12 @@ impl Cartridge {
                 {
                     return Err(RomError::IncorrectDataSize);
                 }
-                let mut cartridge_prg_rom: Vec<u8> = if header.program_rom_size == 1 {
+                let cartridge_prg_rom: Vec<u8> = if header.program_rom_size == 1 {
                     rom_bytes[16..16400].to_vec()
                 } else {
                     rom_bytes[16..32784].to_vec()
                 };
-                let mut Cartridge_chr_rom: Vec<u8> = rom_bytes[16400..].to_vec();
+                let Cartridge_chr_rom: Vec<u8> = rom_bytes[16400..].to_vec();
                 Ok(Cartridge {
                     header,
                     prg_data: cartridge_prg_rom,
