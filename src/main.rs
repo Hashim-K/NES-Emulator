@@ -48,8 +48,11 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use crate::cpu::Cpu;
+    use crate::Mirroring;
     use log::LevelFilter;
-    use tudelft_nes_test::{run_tests, TestSelector};
+    use std::thread;
+    use tudelft_nes_ppu::run_cpu_headless_for;
+    use tudelft_nes_test::{run_tests, TestSelector, TestableCpu, ROM_NROM_TEST};
 
     #[test]
     fn test_nrom() {
@@ -70,5 +73,12 @@ mod tests {
     fn test_nestest() {
         let result = run_tests::<Cpu>(TestSelector::NESTEST);
         assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
+    }
+
+    #[test]
+    fn test_own_rom() {
+        let rom = include_bytes!("../testRom/01-basics.nes");
+        let mut cpu = Cpu::get_cpu(rom).unwrap();
+        run_cpu_headless_for(&mut cpu, Mirroring::Horizontal, 1).unwrap();
     }
 }
