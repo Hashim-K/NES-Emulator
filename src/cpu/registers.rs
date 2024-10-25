@@ -1,11 +1,11 @@
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum StatusRegisterBit {
-    CarryBit,
-    ZeroBit,
-    InterruptBit,
-    DecimalBit,
-    OverflowBit,
-    NegativeBit,
+    Carry,
+    Zero,
+    Interrupt,
+    Decimal,
+    Overflow,
+    Negative,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -21,12 +21,12 @@ pub(crate) struct StatusRegister {
 impl StatusRegister {
     pub(crate) fn set_bit(&mut self, bit: StatusRegisterBit, value: bool) {
         match bit {
-            StatusRegisterBit::CarryBit => self.carry_bit = value,
-            StatusRegisterBit::ZeroBit => self.zero_bit = value,
-            StatusRegisterBit::InterruptBit => self.interrupt_bit = value,
-            StatusRegisterBit::DecimalBit => self.decimal_bit = value,
-            StatusRegisterBit::OverflowBit => self.overflow_bit = value,
-            StatusRegisterBit::NegativeBit => self.negative_bit = value,
+            StatusRegisterBit::Carry => self.carry_bit = value,
+            StatusRegisterBit::Zero => self.zero_bit = value,
+            StatusRegisterBit::Interrupt => self.interrupt_bit = value,
+            StatusRegisterBit::Decimal => self.decimal_bit = value,
+            StatusRegisterBit::Overflow => self.overflow_bit = value,
+            StatusRegisterBit::Negative => self.negative_bit = value,
         }
     }
 
@@ -52,12 +52,12 @@ impl StatusRegister {
 
     pub(crate) fn get_bit(&mut self, bit: StatusRegisterBit) -> bool {
         match bit {
-            StatusRegisterBit::CarryBit => self.carry_bit,
-            StatusRegisterBit::ZeroBit => self.zero_bit,
-            StatusRegisterBit::InterruptBit => self.interrupt_bit,
-            StatusRegisterBit::DecimalBit => self.decimal_bit,
-            StatusRegisterBit::OverflowBit => self.overflow_bit,
-            StatusRegisterBit::NegativeBit => self.negative_bit,
+            StatusRegisterBit::Carry => self.carry_bit,
+            StatusRegisterBit::Zero => self.zero_bit,
+            StatusRegisterBit::Interrupt => self.interrupt_bit,
+            StatusRegisterBit::Decimal => self.decimal_bit,
+            StatusRegisterBit::Overflow => self.overflow_bit,
+            StatusRegisterBit::Negative => self.negative_bit,
         }
     }
 
@@ -164,28 +164,28 @@ mod tests {
         let mut sr = StatusRegister::default();
 
         // Test setting the CarryBit to true
-        sr.set_bit(StatusRegisterBit::CarryBit, true);
-        assert_eq!(sr.carry_bit, true);
+        sr.set_bit(StatusRegisterBit::Carry, true);
+        assert!(sr.carry_bit);
 
         // Test setting the ZeroBit to true
-        sr.set_bit(StatusRegisterBit::ZeroBit, true);
-        assert_eq!(sr.zero_bit, true);
+        sr.set_bit(StatusRegisterBit::Zero, true);
+        assert!(sr.zero_bit);
 
         // Test setting the InterruptBit to false
-        sr.set_bit(StatusRegisterBit::InterruptBit, false);
-        assert_eq!(sr.interrupt_bit, false);
+        sr.set_bit(StatusRegisterBit::Interrupt, false);
+        assert!(!sr.interrupt_bit);
 
         // Test setting the DecimalBit to true
-        sr.set_bit(StatusRegisterBit::DecimalBit, true);
-        assert_eq!(sr.decimal_bit, true);
+        sr.set_bit(StatusRegisterBit::Decimal, true);
+        assert!(sr.decimal_bit);
 
         // Test setting the OverflowBit to true
-        sr.set_bit(StatusRegisterBit::OverflowBit, true);
-        assert_eq!(sr.overflow_bit, true);
+        sr.set_bit(StatusRegisterBit::Overflow, true);
+        assert!(sr.overflow_bit);
 
         // Test setting the NegativeBit to false
-        sr.set_bit(StatusRegisterBit::NegativeBit, false);
-        assert_eq!(sr.negative_bit, false);
+        sr.set_bit(StatusRegisterBit::Negative, false);
+        assert!(!sr.negative_bit);
     }
 
     #[test]

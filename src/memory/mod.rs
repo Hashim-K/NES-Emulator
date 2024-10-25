@@ -33,11 +33,6 @@ impl Memory {
         })
     }
 
-    pub fn write_ppu_byte(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
-        self.cartridge.chr_data[address as usize] = value;
-        Ok(())
-    }
-
     pub fn read_ppu_byte(&self, address: u16) -> Result<u8, MemoryError> {
         Ok(self.cartridge.chr_data[address as usize])
     }
@@ -58,15 +53,13 @@ impl Memory {
     }
 
     pub fn read(&self, address: u16, cpu: &Cpu, ppu: &mut Ppu) -> Result<u8, MemoryError> {
-        let value = match address {
+        match address {
             0x2000..0x4000 => {
                 let register = address_to_ppu_register(address);
                 Ok(ppu.read_ppu_register(register, cpu))
             }
             _ => self.read_cpu_mem(address),
-        };
-
-        value
+        }
     }
 
     pub fn read_cpu_mem(&self, address: u16) -> Result<u8, MemoryError> {
@@ -152,11 +145,11 @@ impl Cartridge {
                 } else {
                     rom_bytes[16..32784].to_vec()
                 };
-                let Cartridge_chr_rom: Vec<u8> = rom_bytes[16400..].to_vec();
+                let cartridge_chr_rom: Vec<u8> = rom_bytes[16400..].to_vec();
                 Ok(Cartridge {
                     header,
                     prg_data: cartridge_prg_rom,
-                    chr_data: Cartridge_chr_rom,
+                    chr_data: cartridge_chr_rom,
                     // pgr ram needs to mirror itself to fill 8kib
                     pgr_ram: [0; 8192],
                 })
@@ -235,7 +228,7 @@ fn test_new_cartridge() {
     };
     // expect file with exact amount of bytes as specified by the header to work (ROM_NROM_TEST length = 24592)
     assert_eq!(
-        Cartridge::new(&ROM_NROM_TEST).unwrap(),
+        Cartridge::new(ROM_NROM_TEST).unwrap(),
         expected_correct_cartridge
     );
     // expect a file that does not have the amount of bytes specified by the header to generate an error
