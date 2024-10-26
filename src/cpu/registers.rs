@@ -30,12 +30,22 @@ impl StatusRegister {
         }
     }
 
-    pub(crate) fn get(self) -> u8 {
+    pub(crate) fn get_for_stack(self) -> u8 {
         (self.carry_bit as u8) << 0
             | (self.zero_bit as u8) << 1
             | (self.interrupt_bit as u8) << 2
             | (self.decimal_bit as u8) << 3
             | 1 << 4
+            | 1 << 5
+            | (self.overflow_bit as u8) << 6
+            | (self.negative_bit as u8) << 7
+    }
+
+    pub(crate) fn get_for_debug(self) -> u8 {
+        (self.carry_bit as u8) << 0
+            | (self.zero_bit as u8) << 1
+            | (self.interrupt_bit as u8) << 2
+            | (self.decimal_bit as u8) << 3
             | 1 << 5
             | (self.overflow_bit as u8) << 6
             | (self.negative_bit as u8) << 7

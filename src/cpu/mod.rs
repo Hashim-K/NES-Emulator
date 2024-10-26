@@ -246,7 +246,7 @@ impl Cpu {
                 self.accumulator.get(),
                 self.x_register.get(),
                 self.y_register.get(),
-                self.status_register.get(),
+                self.status_register.get_for_debug(),
                 self.stack_pointer.get(),
                 ppu_dots
             );
@@ -432,7 +432,7 @@ impl Cpu {
         self.stack_pointer.decrement();
         self.memory.write(
             self.stack_pointer.get() as u16 + 0x0100,
-            self.status_register.get() | 0x10,
+            self.status_register.get_for_stack() | 0x10,
             ppu,
         )?;
         self.stack_pointer.decrement();

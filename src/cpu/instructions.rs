@@ -924,7 +924,8 @@ impl Instruction {
 
             InstructionType::PHP => {
                 let address = 0x0100 + cpu.stack_pointer.get() as u16;
-                cpu.memory.write(address, cpu.status_register.get(), ppu)?;
+                cpu.memory
+                    .write(address, cpu.status_register.get_for_stack(), ppu)?;
                 cpu.stack_pointer.decrement();
                 Ok(())
             }
@@ -1091,8 +1092,10 @@ impl Instruction {
                 Self::set_status_if_zero(value, cpu);
                 Self::set_status_if_negative(operator_value, cpu);
                 // Check if 6th bit is set
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::OverflowBit, value & (1 << 6) > 0);
+                cpu.status_register.set_bit(
+                    StatusRegisterBit::OverflowBit,
+                    operator_value & (1 << 6) > 0,
+                );
                 Ok(())
             }
 
@@ -1380,7 +1383,7 @@ impl Instruction {
                 cpu.stack_pointer.decrement();
                 cpu.memory.write(
                     cpu.stack_pointer.get() as u16 + 0x0100,
-                    cpu.status_register.get(),
+                    cpu.status_register.get_for_stack(),
                     ppu,
                 )?;
                 cpu.stack_pointer.decrement();
