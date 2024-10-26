@@ -36,6 +36,7 @@ pub struct Cpu {
     branch_success: bool,
     page_crossing: bool,
     memory: Memory,
+    total_cycles: u64,
 }
 
 /// Implementing this trait allows automated tests to be run on your cpu.
@@ -68,6 +69,7 @@ impl TestableCpu for Cpu {
             branch_success: false,
             page_crossing: false,
             memory: Memory::new(_rom)?,
+            total_cycles: 0,
         })
     }
 
@@ -89,8 +91,6 @@ impl CpuTemplate for Cpu {
 
     fn tick(&mut self, ppu: &mut Ppu) -> Result<(), MyTickError> {
         // set the cpu to the startup state fi
-        // println!("the clock is ticking");
-        // print!("cpu: {self:?}");
         if !self.initialized {
             self.initialize_cpu(ppu)?;
         }
@@ -107,7 +107,6 @@ impl CpuTemplate for Cpu {
                 self.interrupt_state = current_interrupt;
             }
         }
-        // println!("Polled for interrupts, checking ");
         // execute interrupt or opcode
         if self.current_cycle > self.instruction_cycle_count {
             self.current_cycle = 1;
@@ -132,12 +131,11 @@ impl CpuTemplate for Cpu {
                     todo!("Add interface for IRQ")
                 }
                 InterruptState::NormalOperation => {
+                    self.debug(self.memory.read(self.program_counter.get(), self, ppu)?);
                     let opcode = self.read_next_value(ppu)?;
-                    println!("Reading opcode {:?}", opcode);
 
                     let instruction: Instruction =
                         Instruction::decode(opcode).expect("Failed decoding opcode");
-                    println!("Executing instruction {:?}", instruction);
                     instruction.execute(self, ppu)?;
 
                     self.instruction_cycle_count =
@@ -204,6 +202,7 @@ impl CpuTemplate for Cpu {
             self.nmi_line_triggered = true;
         }
         self.current_cycle += 1;
+        self.total_cycles += 1;
         self.nmi_line_prev = self.nmi_line_current;
         self.nmi_line_current = false;
         Ok(())
@@ -221,6 +220,39 @@ impl CpuTemplate for Cpu {
 }
 
 impl Cpu {
+    fn addressing_mode_get_bytes(&self, addressing_mode: &AddressingMode) -> Vec<u8> {
+        let length = addressing_mode.length() as u16;
+        (0..length)
+            .map(|n| self.memory_read(self.program_counter.get() + n))
+            .collect::<Vec<_>>()
+    }
+
+    fn debug(&self, opcode: u8) {
+        if let Ok(instruction) = Instruction::decode(opcode) {
+            let raw_bytes = self.addressing_mode_get_bytes(&instruction.addressing_mode);
+            let bytes = raw_bytes
+                .iter()
+                .map(|arg| format!("{:02X}", arg))
+                .collect::<Vec<_>>()
+                .join(" ");
+            let ppu_dots_per_scanline = 341;
+            let ppu_dots = self.total_cycles * 3 % ppu_dots_per_scanline;
+
+            println!(
+                "{:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{:-3}",
+                self.program_counter.get(),
+                bytes,
+                instruction.instruction_type,
+                self.accumulator.get(),
+                self.x_register.get(),
+                self.y_register.get(),
+                self.status_register.get(),
+                self.stack_pointer.get(),
+                ppu_dots
+            );
+        }
+    }
+
     fn get_operand_value(
         &mut self,
         addressing_mode: &AddressingMode,
@@ -425,7 +457,6 @@ impl Cpu {
     }
 
     fn initialize_cpu(&mut self, ppu: &mut Ppu) -> Result<(), MemoryError> {
-        println!("intializing cpu");
         let lobyte = self.memory.read(0xFFFC, self, ppu)?;
         let hibyte = self.memory.read(0xFFFD, self, ppu)?;
         self.program_counter.set_lobyte(lobyte);
@@ -437,6 +468,7 @@ impl Cpu {
         self.interrupt_state = InterruptState::NormalOperation;
         self.interrupt_polling_cycle = 0;
         self.initialized = true;
+        self.total_cycles = 0;
 
         Ok(())
     }
