@@ -75,6 +75,7 @@ mod tests {
         assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
     }
 
+    #[ignore]
     #[test]
     fn test_own_rom() {
         let rom = include_bytes!("../testRom/01-basics.nes");

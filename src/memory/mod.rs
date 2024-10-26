@@ -70,7 +70,7 @@ impl Memory {
     }
 
     pub fn read_cpu_mem(&self, address: u16) -> Result<u8, MemoryError> {
-        let value = match address {
+        match address {
             ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]), // RAM reading, including mirroring
             0x2000..0x4000 => {
                 panic!("You have to use the read function if you want to access the ppu memory")
@@ -78,17 +78,7 @@ impl Memory {
             0x4000..0x4018 => todo!(), // NES APU and I/O registers
             0x4018..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
             0x4020.. => Ok(self.cartridge.read(address)?), // Cartridge memory
-        };
-
-        // Debug printing
-        if value.is_ok() {
-            let tmp = value.unwrap();
-            println!("Read memory byte at address {}: {:?}", address, tmp);
-            return Ok(tmp);
-        } else {
-            println!("Read memory byte at address {}: FAILED", address);
         }
-        return value;
     }
 }
 
@@ -114,8 +104,6 @@ impl Cartridge {
     fn parse_header(rom_bytes: &[u8]) -> Result<RomHeader, RomError> {
         // Check rom signature
         if rom_bytes[0..4] != *(b"NES\x1a") {
-            println!("{:?}", b"NES\x1a");
-            println!("{:?}", &rom_bytes[0..4]);
             return Err(RomError::IncorrectSignature);
         }
 
@@ -136,8 +124,6 @@ impl Cartridge {
 
     fn new(rom_bytes: &[u8]) -> Result<Cartridge, RomError> {
         let header = Self::parse_header(rom_bytes)?;
-        println!("{:?}", header.program_rom_size);
-        println!("{:?}", header.charactor_memory_size);
         match header.mapper_number {
             0 => {
                 // check if amount of data is correct
@@ -184,7 +170,6 @@ impl Cartridge {
     }
 
     fn read(&self, address: u16) -> Result<u8, RomError> {
-        println!("{}", self.prg_data.len());
         match address {
             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
             0x8000..0xc000 => Ok(self.prg_data[(address & 0x7FFF) as usize]), // first 16 KiB of prg rom
