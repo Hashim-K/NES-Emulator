@@ -816,6 +816,7 @@ impl Instruction {
     pub fn get_instruction_duration(opcode: u8) -> Result<u8, MainError> {
         let cc: u8 = opcode & 0b11;
         let instruction: Instruction = Instruction::decode(opcode).expect("Failed decoding opcode");
+
         match instruction {
             //EXCEPTIONS
 
