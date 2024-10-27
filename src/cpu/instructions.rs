@@ -1090,10 +1090,8 @@ impl Instruction {
                 Self::set_status_if_zero(value, cpu);
                 Self::set_status_if_negative(operator_value, cpu);
                 // Check if 6th bit is set
-                cpu.status_register.set_bit(
-                    StatusRegisterBit::Overflow,
-                    operator_value & (1 << 6) > 0,
-                );
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::Overflow, operator_value & (1 << 6) > 0);
                 Ok(())
             }
 
