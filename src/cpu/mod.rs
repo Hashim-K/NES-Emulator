@@ -138,7 +138,7 @@ impl CpuTemplate for Cpu {
                     instruction.execute(self, ppu)?;
 
                     self.instruction_cycle_count =
-                        self.current_instruction.addressing_mode.length();
+                        Instruction::get_instruction_duration(opcode, instruction)?;
 
                     if self.page_crossing {
                         self.instruction_cycle_count += 1;
