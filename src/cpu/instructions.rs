@@ -2,6 +2,8 @@ use crate::cpu::{Cpu, StatusRegisterBit};
 use crate::MainError;
 use tudelft_nes_ppu::Ppu;
 
+use super::OperandValue;
+
 #[derive(Debug)]
 pub struct Instruction {
     pub instruction_type: InstructionType,
@@ -45,6 +47,7 @@ impl AddressingMode {
     }
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum InstructionType {
     //888      8888888888  .d8888b.         d8888 888
@@ -811,14 +814,146 @@ impl Instruction {
         }
     }
 
+    // Return the number of cycles the instruction will take
+    pub fn get_instruction_duration(opcode: u8) -> Result<u8, MainError> {
+        let cc: u8 = opcode & 0b11;
+        let instruction: Instruction = Instruction::decode(opcode).expect("Failed decoding opcode");
+
+        match instruction {
+            //EXCEPTIONS
+
+            //JUMPS
+            Instruction {
+                instruction_type: InstructionType::JMP,
+                addressing_mode: AddressingMode::Absolute,
+            } => Ok(3),
+
+            Instruction {
+                instruction_type: InstructionType::JMP,
+                addressing_mode: AddressingMode::Indirect,
+            } => Ok(5),
+
+            Instruction {
+                instruction_type: InstructionType::JSR,
+                addressing_mode: AddressingMode::Absolute,
+            } => Ok(6),
+
+            //IMPLIED
+            Instruction {
+                instruction_type: InstructionType::BRK,
+                addressing_mode: AddressingMode::Implied,
+            } => Ok(7),
+
+            Instruction {
+                instruction_type: InstructionType::PHA | InstructionType::PHP,
+                addressing_mode: AddressingMode::Implied,
+            } => Ok(3),
+
+            Instruction {
+                instruction_type: InstructionType::PLA | InstructionType::PLP,
+                addressing_mode: AddressingMode::Implied,
+            } => Ok(4),
+
+            Instruction {
+                instruction_type: InstructionType::RTI | InstructionType::RTS,
+                addressing_mode: AddressingMode::Implied,
+            } => Ok(6),
+
+            //LDX
+            Instruction {
+                instruction_type: InstructionType::LDX,
+                addressing_mode: AddressingMode::ZeroPage,
+            } => Ok(3),
+
+            Instruction {
+                instruction_type: InstructionType::LDX,
+                addressing_mode:
+                    AddressingMode::ZeroPageY | AddressingMode::Absolute | AddressingMode::AbsoluteY,
+            } => Ok(4),
+
+            //STX
+            Instruction {
+                instruction_type: InstructionType::STX,
+                addressing_mode: AddressingMode::ZeroPage,
+            } => Ok(3),
+
+            Instruction {
+                instruction_type: InstructionType::STX,
+                addressing_mode: AddressingMode::ZeroPageY | AddressingMode::Absolute,
+            } => Ok(4),
+
+            //STA
+            Instruction {
+                instruction_type: InstructionType::STA,
+                addressing_mode: AddressingMode::AbsoluteX | AddressingMode::AbsoluteY,
+            } => Ok(5),
+
+            Instruction {
+                instruction_type: InstructionType::STA,
+                addressing_mode: AddressingMode::IndirectY,
+            } => Ok(6),
+
+            _ => match cc {
+                0b00 => match instruction.addressing_mode {
+                    AddressingMode::Absolute => Ok(4),
+                    AddressingMode::AbsoluteX => Ok(4),
+                    AddressingMode::Immediate => Ok(2),
+                    AddressingMode::Implied => Ok(2),
+                    AddressingMode::Relative => Ok(2),
+                    AddressingMode::ZeroPage => Ok(3),
+                    AddressingMode::ZeroPageX => Ok(4),
+                    _ => Err(MainError::OpcodeError),
+                },
+                0b01 => match instruction.addressing_mode {
+                    AddressingMode::Absolute => Ok(4),
+                    AddressingMode::AbsoluteX => Ok(4),
+                    AddressingMode::AbsoluteY => Ok(4),
+                    AddressingMode::Immediate => Ok(2),
+                    AddressingMode::IndirectX => Ok(6),
+                    AddressingMode::IndirectY => Ok(5),
+                    AddressingMode::ZeroPage => Ok(3),
+                    AddressingMode::ZeroPageX => Ok(4),
+                    _ => Err(MainError::OpcodeError),
+                },
+                0b10 => match instruction.addressing_mode {
+                    AddressingMode::Accumulator => Ok(2),
+                    AddressingMode::Absolute => Ok(6),
+                    AddressingMode::AbsoluteX => Ok(7),
+                    AddressingMode::AbsoluteY => Ok(7),
+                    AddressingMode::Immediate => Ok(2),
+                    AddressingMode::Implied => Ok(2),
+                    AddressingMode::ZeroPage => Ok(5),
+                    AddressingMode::ZeroPageX => Ok(6),
+                    AddressingMode::ZeroPageY => Ok(6),
+                    _ => Err(MainError::OpcodeError),
+                },
+                0b11 => match instruction.addressing_mode {
+                    // AddressingMode::Accumulator => ,
+                    // AddressingMode::Absolute => ,
+                    // AddressingMode::AbsoluteX => ,
+                    // AddressingMode::AbsoluteY => ,
+                    // AddressingMode::Immediate => ,
+                    // AddressingMode::Implied => ,
+                    // AddressingMode::Indirect => ,
+                    // AddressingMode::IndirectX => ,
+                    // AddressingMode::IndirectY => ,
+                    // AddressingMode::Relative => ,
+                    // AddressingMode::ZeroPage => ,
+                    // AddressingMode::ZeroPageX => ,
+                    // AddressingMode::ZeroPageY => ,
+                    _ => Err(MainError::OpcodeError),
+                },
+                _ => Err(MainError::OpcodeError),
+            },
+        }
+    }
+
     // Set zero bit if the number read is 0
     fn set_status_if_zero(value: u8, cpu: &mut Cpu) {
         if value == 0 {
-            cpu.status_register
-                .set_bit(StatusRegisterBit::ZeroBit, true);
+            cpu.status_register.set_bit(StatusRegisterBit::Zero, true);
         } else {
-            cpu.status_register
-                .set_bit(StatusRegisterBit::ZeroBit, false);
+            cpu.status_register.set_bit(StatusRegisterBit::Zero, false);
         }
     }
 
@@ -826,11 +961,12 @@ impl Instruction {
     fn set_status_if_negative(value: u8, cpu: &mut Cpu) {
         // Check if 7th bit is set
         cpu.status_register
-            .set_bit(StatusRegisterBit::NegativeBit, value & (1 << 7) > 0);
+            .set_bit(StatusRegisterBit::Negative, value & (1 << 7) > 0);
     }
 
     pub fn execute(&self, cpu: &mut Cpu, ppu: &mut Ppu) -> Result<(), MainError> {
         let operand_value = cpu.get_operand_value(&self.addressing_mode, ppu)?;
+        self.print_instruction(&operand_value);
         match self.instruction_type {
             InstructionType::LDA => {
                 let value = operand_value.value.expect("LDA operand value is None");
@@ -1010,9 +1146,9 @@ impl Instruction {
                 Self::set_status_if_negative(cpu.accumulator.get(), cpu);
 
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, did_carry);
+                    .set_bit(StatusRegisterBit::Carry, did_carry);
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::OverflowBit, did_overflow);
+                    .set_bit(StatusRegisterBit::Overflow, did_overflow);
                 Ok(())
             }
 
@@ -1034,9 +1170,9 @@ impl Instruction {
                 Self::set_status_if_negative(cpu.accumulator.get(), cpu);
 
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, did_carry);
+                    .set_bit(StatusRegisterBit::Carry, did_carry);
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::OverflowBit, did_overflow);
+                    .set_bit(StatusRegisterBit::Overflow, did_overflow);
                 Ok(())
             }
 
@@ -1051,9 +1187,9 @@ impl Instruction {
                     .value
                     .expect("Operand value for CMP/CPX/CPY is None");
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, reg >= value);
+                    .set_bit(StatusRegisterBit::Carry, reg >= value);
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::ZeroBit, reg == value);
+                    .set_bit(StatusRegisterBit::Zero, reg == value);
                 Self::set_status_if_negative(reg.wrapping_sub(value), cpu);
                 Ok(())
             }
@@ -1092,7 +1228,7 @@ impl Instruction {
                 Self::set_status_if_negative(operator_value, cpu);
                 // Check if 6th bit is set
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::OverflowBit, value & (1 << 6) > 0);
+                    .set_bit(StatusRegisterBit::Overflow, operator_value & (1 << 6) > 0);
                 Ok(())
             }
 
@@ -1100,7 +1236,7 @@ impl Instruction {
                 let operator_value = operand_value.value.expect("Operand value for ASL is None");
                 let result = operator_value << 1;
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 7) != 0);
+                    .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 7) != 0);
                 Self::set_status_if_zero(result, cpu);
                 Self::set_status_if_negative(result, cpu);
 
@@ -1116,7 +1252,7 @@ impl Instruction {
                 let operator_value = operand_value.value.expect("Operand value for LSR is None");
                 let result = operator_value << 1;
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 7) != 0);
+                    .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 7) != 0);
                 Self::set_status_if_zero(result, cpu);
                 Self::set_status_if_negative(result, cpu);
 
@@ -1133,7 +1269,7 @@ impl Instruction {
                 let carry = u8::from(cpu.status_register.get_carry());
                 let result = operator_value << 1 | carry;
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 7) != 0);
+                    .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 7) != 0);
                 Self::set_status_if_zero(result, cpu);
                 Self::set_status_if_negative(result, cpu);
 
@@ -1150,7 +1286,7 @@ impl Instruction {
                 let carry = u8::from(cpu.status_register.get_carry());
                 let result = operator_value >> 1 | carry << 7;
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 0) != 0);
+                    .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 0) != 0);
                 Self::set_status_if_zero(result, cpu);
                 Self::set_status_if_negative(result, cpu);
 
@@ -1163,49 +1299,47 @@ impl Instruction {
             }
 
             InstructionType::CLC => {
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, false);
+                cpu.status_register.set_bit(StatusRegisterBit::Carry, false);
                 Ok(())
             }
 
             InstructionType::CLD => {
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::DecimalBit, false);
+                    .set_bit(StatusRegisterBit::Decimal, false);
                 Ok(())
             }
 
             InstructionType::CLI => {
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::InterruptBit, false);
+                    .set_bit(StatusRegisterBit::Interrupt, false);
                 Ok(())
             }
 
             InstructionType::CLV => {
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::OverflowBit, false);
+                    .set_bit(StatusRegisterBit::Overflow, false);
                 Ok(())
             }
 
             InstructionType::SEC => {
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, true);
+                cpu.status_register.set_bit(StatusRegisterBit::Carry, true);
                 Ok(())
             }
 
             InstructionType::SED => {
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::DecimalBit, true);
+                    .set_bit(StatusRegisterBit::Decimal, true);
                 Ok(())
             }
 
             InstructionType::SEI => {
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::InterruptBit, true);
+                    .set_bit(StatusRegisterBit::Interrupt, true);
                 Ok(())
             }
 
             InstructionType::BCC => {
-                if !cpu.status_register.get_bit(StatusRegisterBit::CarryBit) {
+                if !cpu.status_register.get_bit(StatusRegisterBit::Carry) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1220,7 +1354,7 @@ impl Instruction {
             }
 
             InstructionType::BCS => {
-                if cpu.status_register.get_bit(StatusRegisterBit::CarryBit) {
+                if cpu.status_register.get_bit(StatusRegisterBit::Carry) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1235,7 +1369,7 @@ impl Instruction {
             }
 
             InstructionType::BEQ => {
-                if cpu.status_register.get_bit(StatusRegisterBit::ZeroBit) {
+                if cpu.status_register.get_bit(StatusRegisterBit::Zero) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1250,7 +1384,7 @@ impl Instruction {
             }
 
             InstructionType::BMI => {
-                if cpu.status_register.get_bit(StatusRegisterBit::NegativeBit) {
+                if cpu.status_register.get_bit(StatusRegisterBit::Negative) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1265,7 +1399,7 @@ impl Instruction {
             }
 
             InstructionType::BNE => {
-                if !cpu.status_register.get_bit(StatusRegisterBit::ZeroBit) {
+                if !cpu.status_register.get_bit(StatusRegisterBit::Zero) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1281,7 +1415,7 @@ impl Instruction {
             }
 
             InstructionType::BPL => {
-                if !cpu.status_register.get_bit(StatusRegisterBit::NegativeBit) {
+                if !cpu.status_register.get_bit(StatusRegisterBit::Negative) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1296,7 +1430,7 @@ impl Instruction {
             }
 
             InstructionType::BVC => {
-                if !cpu.status_register.get_bit(StatusRegisterBit::OverflowBit) {
+                if !cpu.status_register.get_bit(StatusRegisterBit::Overflow) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1311,7 +1445,7 @@ impl Instruction {
             }
 
             InstructionType::BVS => {
-                if cpu.status_register.get_bit(StatusRegisterBit::OverflowBit) {
+                if cpu.status_register.get_bit(StatusRegisterBit::Overflow) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1390,7 +1524,7 @@ impl Instruction {
                 cpu.program_counter
                     .set_hibyte(cpu.memory.read(0xFFFF, cpu, ppu)?);
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::InterruptBit, true);
+                    .set_bit(StatusRegisterBit::Interrupt, true);
                 Ok(())
             }
 
@@ -1421,14 +1555,258 @@ impl Instruction {
 
     // Return true if instruction is Read-Modify-Write
     pub fn is_rmw(&self) -> bool {
-        match self.instruction_type {
+        matches!(
+            self.instruction_type,
             InstructionType::ASL
-            | InstructionType::DEC
-            | InstructionType::INC
-            | InstructionType::LSR
-            | InstructionType::ROL
-            | InstructionType::ROR => true,
-            _ => false,
+                | InstructionType::DEC
+                | InstructionType::INC
+                | InstructionType::LSR
+                | InstructionType::ROL
+                | InstructionType::ROR
+        )
+    }
+
+    pub fn print_instruction(&self, operand_value: &OperandValue) {
+        let mut out_val: String = "None".to_string();
+        let mut out_addr: String = "None".to_string();
+
+        if !operand_value.value.is_none() {
+            out_val = format!("0x{:02X}", operand_value.value.unwrap());
         }
+        if !operand_value.address.is_none() {
+            out_addr = format!("0x{:04X}", operand_value.address.unwrap());
+        }
+
+        println!(
+            "Instruction:{:?} Addressing Mode:{:?} - Operand (Value: {:?}, Address: {:?})",
+            self.instruction_type, self.addressing_mode, out_val, out_addr
+        );
+    }
+}
+
+#[test]
+fn test_official_get_instruction_duration() {
+    // ADC
+    let opcodes: Vec<u8> = vec![0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    // AND
+    let opcodes: Vec<u8> = vec![0x29, 0x25, 0x35, 0x2D, 0x3D, 0x39, 0x21, 0x31];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    // ASL
+    let opcodes: Vec<u8> = vec![0x0A, 0x06, 0x16, 0x0E, 0x1E];
+    let durations: Vec<u8> = vec![2, 5, 6, 6, 7];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    // Branch
+    let opcodes: Vec<u8> = vec![0x90, 0xB0, 0xF0, 0x30, 0xD0, 0x10, 0x50, 0x70];
+    let durations: Vec<u8> = vec![2, 2, 2, 2, 2, 2, 2, 2];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //BIT
+    let opcodes: Vec<u8> = vec![0x24, 0x2C];
+    let durations: Vec<u8> = vec![3, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //BRK
+    let duration = Instruction::get_instruction_duration(0x00).unwrap();
+    assert_eq!(duration, 7);
+
+    //Clear
+    let opcodes: Vec<u8> = vec![0x18, 0xD8, 0x58, 0xB8];
+    let durations: Vec<u8> = vec![2, 2, 2, 2];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //CMP
+    let opcodes: Vec<u8> = vec![0xC9, 0xC5, 0xD5, 0xCD, 0xDD, 0xD9, 0xC1, 0xD1];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //CPX & CPY
+    let opcodes: Vec<u8> = vec![0xE0, 0xE4, 0xEC, 0xC0, 0xC4, 0xCC];
+    let durations: Vec<u8> = vec![2, 3, 4, 2, 3, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //DEC & DEX & DEY
+    let opcodes: Vec<u8> = vec![0xC6, 0xD6, 0xCE, 0xDE, 0xCA, 0x88];
+    let durations: Vec<u8> = vec![5, 6, 6, 7, 2, 2];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //EOR
+    let opcodes: Vec<u8> = vec![0x49, 0x45, 0x55, 0x4D, 0x5D, 0x59, 0x41, 0x51];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //INC & INX & INY
+    let opcodes: Vec<u8> = vec![0xE6, 0xF6, 0xEE, 0xFE, 0xE8, 0xC8];
+    let durations: Vec<u8> = vec![5, 6, 6, 7, 2, 2];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //JMP & JSR
+    let opcodes: Vec<u8> = vec![0x4C, 0x6C, 0x20];
+    let durations: Vec<u8> = vec![3, 5, 6];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //LDA
+    let opcodes: Vec<u8> = vec![0xA9, 0xA5, 0xB5, 0xAD, 0xBD, 0xB9, 0xA1, 0xB1];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //LDX
+    let opcodes: Vec<u8> = vec![0xA2, 0xA6, 0xB6, 0xAE, 0xBE];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //LDY
+    let opcodes: Vec<u8> = vec![0xA0, 0xA4, 0xB4, 0xAC, 0xBC];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //LSR
+    let opcodes: Vec<u8> = vec![0x4A, 0x46, 0x56, 0x4E, 0x5E];
+    let durations: Vec<u8> = vec![2, 5, 6, 6, 7];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //NOP
+    let duration = Instruction::get_instruction_duration(0xEA).unwrap();
+    assert_eq!(duration, 2);
+
+    //ORA
+    let opcodes: Vec<u8> = vec![0x09, 0x05, 0x15, 0x0D, 0x1D, 0x19, 0x01, 0x11];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //PHA & PHP & PLA & PLP
+    let opcodes: Vec<u8> = vec![0x48, 0x08, 0x68, 0x28];
+    let durations: Vec<u8> = vec![3, 3, 4, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //ROL
+    let opcodes: Vec<u8> = vec![0x2A, 0x26, 0x36, 0x2E, 0x3E];
+    let durations: Vec<u8> = vec![2, 5, 6, 6, 7];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //ROR
+    let opcodes: Vec<u8> = vec![0x6A, 0x66, 0x76, 0x6E, 0x7E];
+    let durations: Vec<u8> = vec![2, 5, 6, 6, 7];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //RTI & RTS
+    let opcodes: Vec<u8> = vec![0x40, 0x60];
+    let durations: Vec<u8> = vec![6, 6];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //SBC
+    let opcodes: Vec<u8> = vec![0xE9, 0xE5, 0xF5, 0xED, 0xFD, 0xF9, 0xE1, 0xF1];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //Set flag
+    let opcodes: Vec<u8> = vec![0x38, 0xF8, 0x78];
+    let durations: Vec<u8> = vec![2, 2, 2];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //STA
+    let opcodes: Vec<u8> = vec![0x85, 0x95, 0x8D, 0x9D, 0x99, 0x81, 0x91];
+    let durations: Vec<u8> = vec![3, 4, 4, 5, 5, 6, 6];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //STX
+    let opcodes: Vec<u8> = vec![0x86, 0x96, 0x8E];
+    let durations: Vec<u8> = vec![3, 4, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //STY
+    let opcodes: Vec<u8> = vec![0x84, 0x94, 0x8C];
+    let durations: Vec<u8> = vec![3, 4, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //Transfer
+    let opcodes: Vec<u8> = vec![0xAA, 0xA8, 0xBA, 0x8A, 0x9A, 0x98];
+    let durations: Vec<u8> = vec![2, 2, 2, 2, 2, 2];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
     }
 }
