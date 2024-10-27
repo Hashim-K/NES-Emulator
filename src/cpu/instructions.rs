@@ -813,7 +813,7 @@ impl Instruction {
     }
 
     // Return the number of cycles the instruction will take
-    fn get_instruction_duration(opcode: u8, instruction: Instruction) -> Result<u8, MainError> {
+    pub fn get_instruction_duration(opcode: u8, instruction: Instruction) -> Result<u8, MainError> {
         let cc: u8 = opcode & 0b11;
         match instruction {
             //EXCEPTIONS
