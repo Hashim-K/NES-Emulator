@@ -824,106 +824,106 @@ impl Instruction {
             Instruction {
                 instruction_type: InstructionType::JMP,
                 addressing_mode: AddressingMode::Absolute,
-            } => return Ok(3),
+            } => Ok(3),
 
             Instruction {
                 instruction_type: InstructionType::JMP,
                 addressing_mode: AddressingMode::Indirect,
-            } => return Ok(5),
+            } => Ok(5),
 
             Instruction {
                 instruction_type: InstructionType::JSR,
                 addressing_mode: AddressingMode::Absolute,
-            } => return Ok(6),
+            } => Ok(6),
 
             //IMPLIED
             Instruction {
                 instruction_type: InstructionType::BRK,
                 addressing_mode: AddressingMode::Implied,
-            } => return Ok(7),
+            } => Ok(7),
 
             Instruction {
                 instruction_type: InstructionType::PHA | InstructionType::PHP,
                 addressing_mode: AddressingMode::Implied,
-            } => return Ok(3),
+            } => Ok(3),
 
             Instruction {
                 instruction_type: InstructionType::PLA | InstructionType::PLP,
                 addressing_mode: AddressingMode::Implied,
-            } => return Ok(4),
+            } => Ok(4),
 
             Instruction {
                 instruction_type: InstructionType::RTI | InstructionType::RTS,
                 addressing_mode: AddressingMode::Implied,
-            } => return Ok(6),
+            } => Ok(6),
 
             //LDX
             Instruction {
                 instruction_type: InstructionType::LDX,
                 addressing_mode: AddressingMode::ZeroPage,
-            } => return Ok(3),
+            } => Ok(3),
 
             Instruction {
                 instruction_type: InstructionType::LDX,
                 addressing_mode:
                     AddressingMode::ZeroPageY | AddressingMode::Absolute | AddressingMode::AbsoluteY,
-            } => return Ok(4),
+            } => Ok(4),
 
             //STX
             Instruction {
                 instruction_type: InstructionType::STX,
                 addressing_mode: AddressingMode::ZeroPage,
-            } => return Ok(3),
+            } => Ok(3),
 
             Instruction {
                 instruction_type: InstructionType::STX,
                 addressing_mode: AddressingMode::ZeroPageY | AddressingMode::Absolute,
-            } => return Ok(4),
+            } => Ok(4),
 
             //STA
             Instruction {
                 instruction_type: InstructionType::STA,
                 addressing_mode: AddressingMode::AbsoluteX | AddressingMode::AbsoluteY,
-            } => return Ok(5),
+            } => Ok(5),
 
             Instruction {
                 instruction_type: InstructionType::STA,
                 addressing_mode: AddressingMode::IndirectY,
-            } => return Ok(6),
+            } => Ok(6),
 
             _ => match cc {
                 0b00 => match instruction.addressing_mode {
-                    AddressingMode::Absolute => return Ok(4),
-                    AddressingMode::AbsoluteX => return Ok(4),
-                    AddressingMode::Immediate => return Ok(2),
-                    AddressingMode::Implied => return Ok(2),
-                    AddressingMode::Relative => return Ok(2),
-                    AddressingMode::ZeroPage => return Ok(3),
-                    AddressingMode::ZeroPageX => return Ok(4),
-                    _ => return Err(MainError::OpcodeError),
+                    AddressingMode::Absolute => Ok(4),
+                    AddressingMode::AbsoluteX => Ok(4),
+                    AddressingMode::Immediate => Ok(2),
+                    AddressingMode::Implied => Ok(2),
+                    AddressingMode::Relative => Ok(2),
+                    AddressingMode::ZeroPage => Ok(3),
+                    AddressingMode::ZeroPageX => Ok(4),
+                    _ => Err(MainError::OpcodeError),
                 },
                 0b01 => match instruction.addressing_mode {
-                    AddressingMode::Absolute => return Ok(4),
-                    AddressingMode::AbsoluteX => return Ok(4),
-                    AddressingMode::AbsoluteY => return Ok(4),
-                    AddressingMode::Immediate => return Ok(2),
-                    AddressingMode::IndirectX => return Ok(6),
-                    AddressingMode::IndirectY => return Ok(5),
-                    AddressingMode::ZeroPage => return Ok(3),
-                    AddressingMode::ZeroPageX => return Ok(4),
-                    _ => return Err(MainError::OpcodeError),
+                    AddressingMode::Absolute => Ok(4),
+                    AddressingMode::AbsoluteX => Ok(4),
+                    AddressingMode::AbsoluteY => Ok(4),
+                    AddressingMode::Immediate => Ok(2),
+                    AddressingMode::IndirectX => Ok(6),
+                    AddressingMode::IndirectY => Ok(5),
+                    AddressingMode::ZeroPage => Ok(3),
+                    AddressingMode::ZeroPageX => Ok(4),
+                    _ => Err(MainError::OpcodeError),
                 },
                 0b10 => match instruction.addressing_mode {
-                    AddressingMode::Accumulator => return Ok(2),
-                    AddressingMode::Absolute => return Ok(6),
-                    AddressingMode::AbsoluteX => return Ok(7),
-                    AddressingMode::AbsoluteY => return Ok(7),
-                    AddressingMode::Immediate => return Ok(2),
-                    AddressingMode::Implied => return Ok(2),
-                    AddressingMode::ZeroPage => return Ok(5),
-                    AddressingMode::ZeroPageX => return Ok(6),
-                    AddressingMode::ZeroPageY => return Ok(6),
-                    _ => return Err(MainError::OpcodeError),
+                    AddressingMode::Accumulator => Ok(2),
+                    AddressingMode::Absolute => Ok(6),
+                    AddressingMode::AbsoluteX => Ok(7),
+                    AddressingMode::AbsoluteY => Ok(7),
+                    AddressingMode::Immediate => Ok(2),
+                    AddressingMode::Implied => Ok(2),
+                    AddressingMode::ZeroPage => Ok(5),
+                    AddressingMode::ZeroPageX => Ok(6),
+                    AddressingMode::ZeroPageY => Ok(6),
+                    _ => Err(MainError::OpcodeError),
                 },
                 0b11 => match instruction.addressing_mode {
                     // AddressingMode::Accumulator => ,
@@ -939,9 +939,9 @@ impl Instruction {
                     // AddressingMode::ZeroPage => ,
                     // AddressingMode::ZeroPageX => ,
                     // AddressingMode::ZeroPageY => ,
-                    _ => return Err(MainError::OpcodeError),
+                    _ => Err(MainError::OpcodeError),
                 },
-                _ => return Err(MainError::OpcodeError),
+                _ => Err(MainError::OpcodeError),
             },
         }
     }
