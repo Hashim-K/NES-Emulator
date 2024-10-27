@@ -879,6 +879,17 @@ impl Instruction {
                 addressing_mode: AddressingMode::ZeroPageY | AddressingMode::Absolute,
             } => return Ok(4),
 
+            //STA
+            Instruction {
+                instruction_type: InstructionType::STA,
+                addressing_mode: AddressingMode::AbsoluteX | AddressingMode::AbsoluteY,
+            } => return Ok(5),
+
+            Instruction {
+                instruction_type: InstructionType::STA,
+                addressing_mode: AddressingMode::IndirectY,
+            } => return Ok(6),
+
             _ => match cc {
                 0b00 => match instruction.addressing_mode {
                     AddressingMode::Absolute => return Ok(4),
@@ -1549,5 +1560,232 @@ impl Instruction {
                 | InstructionType::ROL
                 | InstructionType::ROR
         )
+    }
+}
+
+#[test]
+fn test_official_get_instruction_duration() {
+    // ADC
+    let opcodes: Vec<u8> = vec![0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    // AND
+    let opcodes: Vec<u8> = vec![0x29, 0x25, 0x35, 0x2D, 0x3D, 0x39, 0x21, 0x31];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    // ASL
+    let opcodes: Vec<u8> = vec![0x0A, 0x06, 0x16, 0x0E, 0x1E];
+    let durations: Vec<u8> = vec![2, 5, 6, 6, 7];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    // Branch
+    let opcodes: Vec<u8> = vec![0x90, 0xB0, 0xF0, 0x30, 0xD0, 0x10, 0x50, 0x70];
+    let durations: Vec<u8> = vec![2, 2, 2, 2, 2, 2, 2, 2];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //BIT
+    let opcodes: Vec<u8> = vec![0x24, 0x2C];
+    let durations: Vec<u8> = vec![3, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //BRK
+    let duration = Instruction::get_instruction_duration(0x00).unwrap();
+    assert_eq!(duration, 7);
+
+    //Clear
+    let opcodes: Vec<u8> = vec![0x18, 0xD8, 0x58, 0xB8];
+    let durations: Vec<u8> = vec![2, 2, 2, 2];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //CMP
+    let opcodes: Vec<u8> = vec![0xC9, 0xC5, 0xD5, 0xCD, 0xDD, 0xD9, 0xC1, 0xD1];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //CPX & CPY
+    let opcodes: Vec<u8> = vec![0xE0, 0xE4, 0xEC, 0xC0, 0xC4, 0xCC];
+    let durations: Vec<u8> = vec![2, 3, 4, 2, 3, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //DEC & DEX & DEY
+    let opcodes: Vec<u8> = vec![0xC6, 0xD6, 0xCE, 0xDE, 0xCA, 0x88];
+    let durations: Vec<u8> = vec![5, 6, 6, 7, 2, 2];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //EOR
+    let opcodes: Vec<u8> = vec![0x49, 0x45, 0x55, 0x4D, 0x5D, 0x59, 0x41, 0x51];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //INC & INX & INY
+    let opcodes: Vec<u8> = vec![0xE6, 0xF6, 0xEE, 0xFE, 0xE8, 0xC8];
+    let durations: Vec<u8> = vec![5, 6, 6, 7, 2, 2];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //JMP & JSR
+    let opcodes: Vec<u8> = vec![0x4C, 0x6C, 0x20];
+    let durations: Vec<u8> = vec![3, 5, 6];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //LDA
+    let opcodes: Vec<u8> = vec![0xA9, 0xA5, 0xB5, 0xAD, 0xBD, 0xB9, 0xA1, 0xB1];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //LDX
+    let opcodes: Vec<u8> = vec![0xA2, 0xA6, 0xB6, 0xAE, 0xBE];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //LDY
+    let opcodes: Vec<u8> = vec![0xA0, 0xA4, 0xB4, 0xAC, 0xBC];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //LSR
+    let opcodes: Vec<u8> = vec![0x4A, 0x46, 0x56, 0x4E, 0x5E];
+    let durations: Vec<u8> = vec![2, 5, 6, 6, 7];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //NOP
+    let duration = Instruction::get_instruction_duration(0xEA).unwrap();
+    assert_eq!(duration, 2);
+
+    //ORA
+    let opcodes: Vec<u8> = vec![0x09, 0x05, 0x15, 0x0D, 0x1D, 0x19, 0x01, 0x11];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //PHA & PHP & PLA & PLP
+    let opcodes: Vec<u8> = vec![0x48, 0x08, 0x68, 0x28];
+    let durations: Vec<u8> = vec![3, 3, 4, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //ROL
+    let opcodes: Vec<u8> = vec![0x2A, 0x26, 0x36, 0x2E, 0x3E];
+    let durations: Vec<u8> = vec![2, 5, 6, 6, 7];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //ROR
+    let opcodes: Vec<u8> = vec![0x6A, 0x66, 0x76, 0x6E, 0x7E];
+    let durations: Vec<u8> = vec![2, 5, 6, 6, 7];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //RTI & RTS
+    let opcodes: Vec<u8> = vec![0x40, 0x60];
+    let durations: Vec<u8> = vec![6, 6];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //SBC
+    let opcodes: Vec<u8> = vec![0xE9, 0xE5, 0xF5, 0xED, 0xFD, 0xF9, 0xE1, 0xF1];
+    let durations: Vec<u8> = vec![2, 3, 4, 4, 4, 4, 6, 5];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //Set flag
+    let opcodes: Vec<u8> = vec![0x38, 0xF8, 0x78];
+    let durations: Vec<u8> = vec![2, 2, 2];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //STA
+    let opcodes: Vec<u8> = vec![0x85, 0x95, 0x8D, 0x9D, 0x99, 0x81, 0x91];
+    let durations: Vec<u8> = vec![3, 4, 4, 5, 5, 6, 6];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //STX
+    let opcodes: Vec<u8> = vec![0x86, 0x96, 0x8E];
+    let durations: Vec<u8> = vec![3, 4, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //STY
+    let opcodes: Vec<u8> = vec![0x84, 0x94, 0x8C];
+    let durations: Vec<u8> = vec![3, 4, 4];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
+    }
+
+    //Transfer
+    let opcodes: Vec<u8> = vec![0xAA, 0xA8, 0xBA, 0x8A, 0x9A, 0x98];
+    let durations: Vec<u8> = vec![2, 2, 2, 2, 2, 2];
+    for (i, opcode) in opcodes.iter().enumerate() {
+        let duration = Instruction::get_instruction_duration(*opcode).unwrap();
+        assert_eq!(duration, durations[i]);
     }
 }
