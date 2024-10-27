@@ -135,19 +135,10 @@ impl CpuTemplate for Cpu {
                         // self.debug(self.memory.read(self.program_counter.get(), self, ppu)?);
                         let opcode = self.read_next_value(ppu)?;
                         println!("Opcode: {:02X}", opcode);
-                        // println!("Decoding opcode");
                         let instruction: Instruction =
                             Instruction::decode(opcode).expect("Failed decoding opcode");
-                        // println!(
-                        //     "Decoded instruction - {:?} {:?}",
-                        //     instruction.instruction_type, instruction.addressing_mode
-                        // );
-                        // self.print_instruction(&instruction);
-                        // println!("Executing instruction");
                         instruction.execute(self, ppu)?;
-                        // println!("Instruction executed");
 
-                        // println!("Setting instruction cycle count");
                         self.instruction_cycle_count =
                             Instruction::get_instruction_duration(opcode)?;
                         println!(
@@ -173,6 +164,7 @@ impl CpuTemplate for Cpu {
                             self.instruction_cycle_count -= 1;
                         }
                         self.current_instruction = instruction;
+                        self.print_cpu_state_header();
                     }
                 }
             }
@@ -212,7 +204,7 @@ impl CpuTemplate for Cpu {
             if self.nmi_line_current && !self.nmi_line_prev {
                 self.nmi_line_triggered = true;
             }
-            self.print_CPU_state();
+            self.print_cpu_state();
             self.current_cycle += 1;
             self.total_cycles += 1;
             self.nmi_line_prev = self.nmi_line_current;
@@ -266,32 +258,23 @@ impl Cpu {
         }
     }
 
-    // fn print_instruction(&self, instruction: &Instruction) {
-    //     let bytes = self.addressing_mode_get_bytes(&instruction.addressing_mode);
-    //     println!(
-    //         "{:04X}  {:8}  {:32?}",
-    //         self.program_counter.get() - 1,
-    //         bytes
-    //             .iter()
-    //             .map(|arg| format!("{:02X}", arg))
-    //             .collect::<Vec<_>>()
-    //             .join(" "),
-    //         instruction
-    //     );
-    // }
+    fn print_cpu_state_header(&self) {
+        println!("A |X |Y |SP |PC   |T/MT |NV-BDIZC |CYCLE");
+        println!("----------------------------------------");
+    }
 
-    fn print_CPU_state(&self) {
+    fn print_cpu_state(&self) {
         println!(
-            "A:{:02X} X:{:02X} Y:{:02X} SR:{:02X} SP:{:02X} PC:{:04X} T:{} CYCLE:{} MT:{}",
+            "{:02X}|{:02X}|{:02X}|{:02X} |{:04X} |{}/{}  |{:08b} |{}",
             self.accumulator.get(),
             self.x_register.get(),
             self.y_register.get(),
-            self.status_register.get(),
             self.stack_pointer.get(),
             self.program_counter.get(),
             self.current_cycle,
-            self.total_cycles,
-            self.instruction_cycle_count
+            self.instruction_cycle_count,
+            self.status_register.get(),
+            self.total_cycles
         );
     }
 
@@ -305,10 +288,14 @@ impl Cpu {
 
         match addressing_mode.length() {
             1 => (),
-            2 => ll = self.read_next_value(ppu)?,
+            2 => {
+                ll = self.read_next_value(ppu)?;
+                println!("ll: {:02X}", ll);
+            }
             3 => {
                 ll = self.read_next_value(ppu)?;
                 hh = self.read_next_value(ppu)?;
+                println!("ll: {:02X} hh: {:02X}", ll, hh);
             }
             _ => panic!("Unknown addressing mode"),
         }
@@ -411,6 +398,12 @@ impl Cpu {
                     .get()
                     .wrapping_add((ll & 0b0111_1111) as u16)
                     .wrapping_sub((ll & 0b1000_0000) as u16);
+                println!(
+                    "Old PC: {:04X} Offset:{} New PC: {:04X}",
+                    self.program_counter.get(),
+                    ll as i8,
+                    new_pc
+                );
                 if ((new_pc & 0x0100) ^ (self.program_counter.get() & 0x0100)) == 0x0100 {
                     self.page_crossing = true;
                 }
@@ -457,7 +450,7 @@ impl Cpu {
         //     value
         // );
         self.program_counter.increment();
-        // println!("NEW PC: {:04X}", self.program_counter.get());
+        // println!("NEWNEW PC: {:04X}", self.program_counter.get());
         Ok(value)
     }
 
@@ -513,13 +506,15 @@ impl Cpu {
         self.program_counter.set_hibyte(hibyte);
         // println!("program counter set to {}", self.program_counter.get());
         self.stack_pointer.set(0xFF);
+        self.status_register
+            .set_bit(StatusRegisterBit::Interrupt, true);
 
         self.instruction_cycle_count = 7;
         self.interrupt_state = InterruptState::NormalOperation;
         self.interrupt_polling_cycle = 0;
         self.initialized = true;
         self.total_cycles = 0;
-        self.print_CPU_state();
+        self.print_cpu_state();
 
         Ok(())
     }

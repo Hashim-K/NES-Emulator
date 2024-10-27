@@ -78,7 +78,7 @@ mod tests {
     #[ignore]
     #[test]
     fn test_own_rom() {
-        let rom = include_bytes!("../testRom/01-basics.nes");
+        let rom = include_bytes!("../roms/01-basics.nes");
         let mut cpu = Cpu::get_cpu(rom).unwrap();
         run_cpu_headless_for(&mut cpu, Mirroring::Horizontal, 1).unwrap();
     }
