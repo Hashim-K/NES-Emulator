@@ -76,10 +76,9 @@ impl TestableCpu for Cpu {
     }
 
     fn memory_read(&self, _address: u16) -> u8 {
-        return self
-            .memory
+        self.memory
             .read_cpu_mem(_address)
-            .expect("Could not read from memory");
+            .expect("Could not read from memory")
     }
 }
 
@@ -98,9 +97,7 @@ impl CpuTemplate for Cpu {
             // this line is for interrupt hijacking to be working later
             let current_interrupt = self.poll_interrupts();
             if current_interrupt == InterruptState::IRQ
-                && self
-                    .status_register
-                    .get_bit(StatusRegisterBit::InterruptBit)
+                && self.status_register.get_bit(StatusRegisterBit::Interrupt)
             {
                 self.interrupt_state = InterruptState::NormalOperation;
             } else {
@@ -182,10 +179,7 @@ impl CpuTemplate for Cpu {
                     self.interrupt_polling_cycle = 0;
                 }
                 InterruptState::IRQ => {
-                    if !self
-                        .status_register
-                        .get_bit(StatusRegisterBit::InterruptBit)
-                    {
+                    if !self.status_register.get_bit(StatusRegisterBit::Interrupt) {
                         let nmi_lobyte = self.memory.read(0xFFFE, self, ppu)?;
                         let nmi_hibyte = self.memory.read(0xFFFF, self, ppu)?;
                         self.program_counter.set_lobyte(nmi_lobyte);
@@ -348,7 +342,7 @@ impl Cpu {
 
             // zpg	        zeropage	            OPC $LL	        operand is zeropage address (hi-byte is zero, address = $00LL)
             AddressingMode::ZeroPage => {
-                let address: u16 = (0 as u16) << 8 | ll as u16;
+                let address: u16 = ll as u16;
                 Ok(OperandValue {
                     address: Some(address),
                     value: Some(self.memory.read(address, self, ppu)?),

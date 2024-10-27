@@ -45,6 +45,7 @@ impl AddressingMode {
     }
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum InstructionType {
     //888      8888888888  .d8888b.         d8888 888
@@ -814,11 +815,9 @@ impl Instruction {
     // Set zero bit if the number read is 0
     fn set_status_if_zero(value: u8, cpu: &mut Cpu) {
         if value == 0 {
-            cpu.status_register
-                .set_bit(StatusRegisterBit::ZeroBit, true);
+            cpu.status_register.set_bit(StatusRegisterBit::Zero, true);
         } else {
-            cpu.status_register
-                .set_bit(StatusRegisterBit::ZeroBit, false);
+            cpu.status_register.set_bit(StatusRegisterBit::Zero, false);
         }
     }
 
@@ -826,7 +825,7 @@ impl Instruction {
     fn set_status_if_negative(value: u8, cpu: &mut Cpu) {
         // Check if 7th bit is set
         cpu.status_register
-            .set_bit(StatusRegisterBit::NegativeBit, value & (1 << 7) > 0);
+            .set_bit(StatusRegisterBit::Negative, value & (1 << 7) > 0);
     }
 
     pub fn execute(&self, cpu: &mut Cpu, ppu: &mut Ppu) -> Result<(), MainError> {
@@ -1010,9 +1009,9 @@ impl Instruction {
                 Self::set_status_if_negative(cpu.accumulator.get(), cpu);
 
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, did_carry);
+                    .set_bit(StatusRegisterBit::Carry, did_carry);
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::OverflowBit, did_overflow);
+                    .set_bit(StatusRegisterBit::Overflow, did_overflow);
                 Ok(())
             }
 
@@ -1034,9 +1033,9 @@ impl Instruction {
                 Self::set_status_if_negative(cpu.accumulator.get(), cpu);
 
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, did_carry);
+                    .set_bit(StatusRegisterBit::Carry, did_carry);
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::OverflowBit, did_overflow);
+                    .set_bit(StatusRegisterBit::Overflow, did_overflow);
                 Ok(())
             }
 
@@ -1051,9 +1050,9 @@ impl Instruction {
                     .value
                     .expect("Operand value for CMP/CPX/CPY is None");
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, reg >= value);
+                    .set_bit(StatusRegisterBit::Carry, reg >= value);
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::ZeroBit, reg == value);
+                    .set_bit(StatusRegisterBit::Zero, reg == value);
                 Self::set_status_if_negative(reg.wrapping_sub(value), cpu);
                 Ok(())
             }
@@ -1091,10 +1090,8 @@ impl Instruction {
                 Self::set_status_if_zero(value, cpu);
                 Self::set_status_if_negative(operator_value, cpu);
                 // Check if 6th bit is set
-                cpu.status_register.set_bit(
-                    StatusRegisterBit::OverflowBit,
-                    operator_value & (1 << 6) > 0,
-                );
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::Overflow, operator_value & (1 << 6) > 0);
                 Ok(())
             }
 
@@ -1102,7 +1099,7 @@ impl Instruction {
                 let operator_value = operand_value.value.expect("Operand value for ASL is None");
                 let result = operator_value << 1;
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 7) != 0);
+                    .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 7) != 0);
                 Self::set_status_if_zero(result, cpu);
                 Self::set_status_if_negative(result, cpu);
 
@@ -1118,7 +1115,7 @@ impl Instruction {
                 let operator_value = operand_value.value.expect("Operand value for LSR is None");
                 let result = operator_value << 1;
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 7) != 0);
+                    .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 7) != 0);
                 Self::set_status_if_zero(result, cpu);
                 Self::set_status_if_negative(result, cpu);
 
@@ -1135,7 +1132,7 @@ impl Instruction {
                 let carry = u8::from(cpu.status_register.get_carry());
                 let result = operator_value << 1 | carry;
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 7) != 0);
+                    .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 7) != 0);
                 Self::set_status_if_zero(result, cpu);
                 Self::set_status_if_negative(result, cpu);
 
@@ -1152,7 +1149,7 @@ impl Instruction {
                 let carry = u8::from(cpu.status_register.get_carry());
                 let result = operator_value >> 1 | carry << 7;
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, operator_value & (1 << 0) != 0);
+                    .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 0) != 0);
                 Self::set_status_if_zero(result, cpu);
                 Self::set_status_if_negative(result, cpu);
 
@@ -1165,49 +1162,47 @@ impl Instruction {
             }
 
             InstructionType::CLC => {
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, false);
+                cpu.status_register.set_bit(StatusRegisterBit::Carry, false);
                 Ok(())
             }
 
             InstructionType::CLD => {
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::DecimalBit, false);
+                    .set_bit(StatusRegisterBit::Decimal, false);
                 Ok(())
             }
 
             InstructionType::CLI => {
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::InterruptBit, false);
+                    .set_bit(StatusRegisterBit::Interrupt, false);
                 Ok(())
             }
 
             InstructionType::CLV => {
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::OverflowBit, false);
+                    .set_bit(StatusRegisterBit::Overflow, false);
                 Ok(())
             }
 
             InstructionType::SEC => {
-                cpu.status_register
-                    .set_bit(StatusRegisterBit::CarryBit, true);
+                cpu.status_register.set_bit(StatusRegisterBit::Carry, true);
                 Ok(())
             }
 
             InstructionType::SED => {
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::DecimalBit, true);
+                    .set_bit(StatusRegisterBit::Decimal, true);
                 Ok(())
             }
 
             InstructionType::SEI => {
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::InterruptBit, true);
+                    .set_bit(StatusRegisterBit::Interrupt, true);
                 Ok(())
             }
 
             InstructionType::BCC => {
-                if !cpu.status_register.get_bit(StatusRegisterBit::CarryBit) {
+                if !cpu.status_register.get_bit(StatusRegisterBit::Carry) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1222,7 +1217,7 @@ impl Instruction {
             }
 
             InstructionType::BCS => {
-                if cpu.status_register.get_bit(StatusRegisterBit::CarryBit) {
+                if cpu.status_register.get_bit(StatusRegisterBit::Carry) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1237,7 +1232,7 @@ impl Instruction {
             }
 
             InstructionType::BEQ => {
-                if cpu.status_register.get_bit(StatusRegisterBit::ZeroBit) {
+                if cpu.status_register.get_bit(StatusRegisterBit::Zero) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1252,7 +1247,7 @@ impl Instruction {
             }
 
             InstructionType::BMI => {
-                if cpu.status_register.get_bit(StatusRegisterBit::NegativeBit) {
+                if cpu.status_register.get_bit(StatusRegisterBit::Negative) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1267,7 +1262,7 @@ impl Instruction {
             }
 
             InstructionType::BNE => {
-                if !cpu.status_register.get_bit(StatusRegisterBit::ZeroBit) {
+                if !cpu.status_register.get_bit(StatusRegisterBit::Zero) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1283,7 +1278,7 @@ impl Instruction {
             }
 
             InstructionType::BPL => {
-                if !cpu.status_register.get_bit(StatusRegisterBit::NegativeBit) {
+                if !cpu.status_register.get_bit(StatusRegisterBit::Negative) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1298,7 +1293,7 @@ impl Instruction {
             }
 
             InstructionType::BVC => {
-                if !cpu.status_register.get_bit(StatusRegisterBit::OverflowBit) {
+                if !cpu.status_register.get_bit(StatusRegisterBit::Overflow) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1313,7 +1308,7 @@ impl Instruction {
             }
 
             InstructionType::BVS => {
-                if cpu.status_register.get_bit(StatusRegisterBit::OverflowBit) {
+                if cpu.status_register.get_bit(StatusRegisterBit::Overflow) {
                     cpu.branch_success = true;
                     cpu.program_counter.set(
                         operand_value
@@ -1392,7 +1387,7 @@ impl Instruction {
                 cpu.program_counter
                     .set_hibyte(cpu.memory.read(0xFFFF, cpu, ppu)?);
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::InterruptBit, true);
+                    .set_bit(StatusRegisterBit::Interrupt, true);
                 Ok(())
             }
 
@@ -1423,14 +1418,14 @@ impl Instruction {
 
     // Return true if instruction is Read-Modify-Write
     pub fn is_rmw(&self) -> bool {
-        match self.instruction_type {
+        matches!(
+            self.instruction_type,
             InstructionType::ASL
-            | InstructionType::DEC
-            | InstructionType::INC
-            | InstructionType::LSR
-            | InstructionType::ROL
-            | InstructionType::ROR => true,
-            _ => false,
-        }
+                | InstructionType::DEC
+                | InstructionType::INC
+                | InstructionType::LSR
+                | InstructionType::ROL
+                | InstructionType::ROR
+        )
     }
 }

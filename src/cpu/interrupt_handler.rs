@@ -1,3 +1,4 @@
+#[allow(clippy::upper_case_acronyms)]
 #[derive(PartialEq, PartialOrd, Copy, Clone, Debug)]
 pub(crate) enum InterruptState {
     NormalOperation,
@@ -26,16 +27,13 @@ pub(crate) enum InterruptState {
 //
 #[test]
 fn test_ordering() {
-    assert_eq!(InterruptState::NMI > InterruptState::NMI, false);
-    assert_eq!(InterruptState::NMI > InterruptState::IRQ, true);
-    assert_eq!(InterruptState::NMI > InterruptState::NormalOperation, true);
-    assert_eq!(InterruptState::IRQ > InterruptState::NMI, false);
-    assert_eq!(InterruptState::IRQ > InterruptState::IRQ, false);
-    assert_eq!(InterruptState::IRQ > InterruptState::NormalOperation, true);
-    assert_eq!(InterruptState::NormalOperation > InterruptState::NMI, false);
-    assert_eq!(InterruptState::NormalOperation > InterruptState::IRQ, false);
-    assert_eq!(
-        InterruptState::NormalOperation > InterruptState::NormalOperation,
-        false
-    );
+    assert!(InterruptState::NMI == InterruptState::NMI);
+    assert!(InterruptState::NMI > InterruptState::IRQ);
+    assert!(InterruptState::NMI > InterruptState::NormalOperation);
+    assert!(InterruptState::IRQ < InterruptState::NMI);
+    assert!(InterruptState::IRQ == InterruptState::IRQ);
+    assert!(InterruptState::IRQ > InterruptState::NormalOperation);
+    assert!(InterruptState::NormalOperation < InterruptState::NMI);
+    assert!(InterruptState::NormalOperation < InterruptState::IRQ);
+    assert!(InterruptState::NormalOperation == InterruptState::NormalOperation);
 }
