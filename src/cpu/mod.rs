@@ -313,9 +313,10 @@ impl Cpu {
             // ind,Y	    indirect, Y-indexed	    OPC ($LL),Y	    operand is zeropage address; effective address is word in (LL, LL + 1) incremented by Y with carry: C.w($00LL) + Y
             AddressingMode::IndirectY => {
                 let address: u16 = ll as u16;
-                let memory_ll: u8 = self.memory.read(address, self, ppu)? + self.y_register.get();
+                let memory_ll: u8 = self.memory.read(address, self, ppu)?;
                 let memory_hh: u8 = self.memory.read(address + 1, self, ppu)?;
-                let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
+                let memory_address: u16 = ((memory_hh as u16) << 8 | memory_ll as u16)
+                    .wrapping_add(self.y_register.get().into());
                 Ok(OperandValue {
                     address: Some(memory_address),
                     value: Some(self.memory.read(memory_address, self, ppu)?),
