@@ -2,6 +2,8 @@ use crate::cpu::{Cpu, StatusRegisterBit};
 use crate::MainError;
 use tudelft_nes_ppu::Ppu;
 
+use super::OperandValue;
+
 #[derive(Debug)]
 pub struct Instruction {
     pub instruction_type: InstructionType,
@@ -964,6 +966,7 @@ impl Instruction {
 
     pub fn execute(&self, cpu: &mut Cpu, ppu: &mut Ppu) -> Result<(), MainError> {
         let operand_value = cpu.get_operand_value(&self.addressing_mode, ppu)?;
+        self.print_instruction(&operand_value);
         match self.instruction_type {
             InstructionType::LDA => {
                 let value = operand_value.value.expect("LDA operand value is None");
@@ -1552,15 +1555,32 @@ impl Instruction {
 
     // Return true if instruction is Read-Modify-Write
     pub fn is_rmw(&self) -> bool {
-        matches!(
-            self.instruction_type,
+        match self.instruction_type {
             InstructionType::ASL
-                | InstructionType::DEC
-                | InstructionType::INC
-                | InstructionType::LSR
-                | InstructionType::ROL
-                | InstructionType::ROR
-        )
+            | InstructionType::DEC
+            | InstructionType::INC
+            | InstructionType::LSR
+            | InstructionType::ROL
+            | InstructionType::ROR => true,
+            _ => true,
+        }
+    }
+
+    pub fn print_instruction(&self, operand_value: &OperandValue) {
+        let mut out_val: String = "None".to_string();
+        let mut out_addr: String = "None".to_string();
+
+        if !operand_value.value.is_none() {
+            out_val = format!("0x{:02X}", operand_value.value.unwrap());
+        }
+        if !operand_value.address.is_none() {
+            out_addr = format!("0x{:04X}", operand_value.address.unwrap());
+        }
+
+        println!(
+            "Instruction:{:?} Addressing Mode:{:?} - Operand (Value: {:?}, Address: {:?})",
+            self.instruction_type, self.addressing_mode, out_val, out_addr
+        );
     }
 }
 
