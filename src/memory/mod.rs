@@ -1,5 +1,7 @@
 use crate::cpu::Cpu;
 use crate::error::{MemoryError, RomError};
+use std::cell::RefCell;
+use tudelft_nes_ppu::Buttons;
 use tudelft_nes_ppu::{Mirroring, Ppu, PpuRegister};
 
 #[cfg(test)]
@@ -23,6 +25,7 @@ fn test_address_to_ppu_register() {
 pub struct Memory {
     internal_ram: [u8; 2048],
     cartridge: Cartridge,
+    controller: RefCell<Controller>,
 }
 
 impl Memory {
@@ -30,6 +33,7 @@ impl Memory {
         Ok(Memory {
             cartridge: Cartridge::new(rom_bytes)?,
             internal_ram: [0; 2048],
+            controller: RefCell::new(Controller::new()),
         })
     }
 
@@ -44,8 +48,9 @@ impl Memory {
                 let _register = address_to_ppu_register(address);
                 ppu.write_ppu_register(_register, value)
             } // NES PPU registers
-            0x4000..0x4018 => todo!(), // NES APU and I/O registers
-            0x4018..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
+            0x4000..0x4016 => {} // TODO: NES APU and I/O registers
+            0x4016 => self.controller.borrow_mut().write(value), // NES APU and I/O registers
+            0x4017..0x4020 => {} // TODO: APU and I/O functionality that is normally disabled
             0x4020.. => return self.cartridge.write(address, value), // Cartridge memory
         };
 
@@ -58,6 +63,7 @@ impl Memory {
                 let register = address_to_ppu_register(address);
                 Ok(ppu.read_ppu_register(register, cpu))
             }
+            0x4016 => Ok(self.controller.borrow_mut().read(ppu)),
             _ => self.read_cpu_mem(address),
         }
     }
@@ -68,8 +74,12 @@ impl Memory {
             0x2000..0x4000 => {
                 panic!("You have to use the read function if you want to access the ppu memory")
             }
-            0x4000..0x4018 => todo!(), // NES APU and I/O registers
-            0x4018..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
+            0x4000..0x4016 => Ok(0), // Open bus, undefined behavior
+            0x4016 => {
+                panic!("You have to use the read function if you want to access the controller")
+            }
+            0x4017 => Ok(0),         // TODO: impelement controller 2
+            0x4018..0x4020 => Ok(0), // Open bus, undefined behavior
             0x4020.. => Ok(self.cartridge.read(address)?), // Cartridge memory
         };
 
@@ -236,4 +246,54 @@ fn test_new_cartridge() {
         Cartridge::new(&ROM_NROM_TEST[0..24231]).unwrap_err(),
         RomError::IncorrectDataSize
     );
+}
+
+#[derive(Debug)]
+struct Controller {
+    strobe: bool,
+    buttons: Buttons,
+    read_index: u8,
+}
+
+impl Controller {
+    fn write(&mut self, byte: u8) {
+        self.strobe = (byte & 0b1) == 1;
+    }
+
+    fn clock_pulse(&mut self, ppu: &Ppu) {
+        if self.strobe {
+            self.buttons = ppu.get_joypad_state();
+            self.read_index = 0;
+        }
+    }
+
+    fn read(&mut self, ppu: &Ppu) -> u8 {
+        let result = u8::from(match self.read_index {
+            0 => self.buttons.a,
+            1 => self.buttons.b,
+            2 => self.buttons.select,
+            3 => self.buttons.start,
+            4 => self.buttons.up,
+            5 => self.buttons.down,
+            6 => self.buttons.left,
+            7 => self.buttons.right,
+            _ => panic!("Button reading out of bounds"),
+        });
+
+        // Advance reading index
+        self.read_index += 1;
+        if self.read_index > 7 {
+            self.read_index = 0
+        }
+        self.clock_pulse(ppu);
+        result
+    }
+
+    fn new() -> Self {
+        Controller {
+            strobe: false,
+            buttons: Buttons::default(),
+            read_index: 0,
+        }
+    }
 }
