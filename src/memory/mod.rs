@@ -1,3 +1,4 @@
+use crate::cpu::debug::{self, DebugMode};
 use crate::cpu::Cpu;
 use crate::error::{MemoryError, RomError};
 use tudelft_nes_ppu::{Mirroring, Ppu, PpuRegister};
@@ -23,13 +24,15 @@ fn test_address_to_ppu_register() {
 pub struct Memory {
     internal_ram: [u8; 2048],
     cartridge: Cartridge,
+    debug: DebugMode,
 }
 
 impl Memory {
-    pub fn new(rom_bytes: &[u8]) -> Result<Memory, RomError> {
+    pub fn new(rom_bytes: &[u8], debugmode: DebugMode) -> Result<Memory, RomError> {
         Ok(Memory {
             cartridge: Cartridge::new(rom_bytes)?,
             internal_ram: [0; 2048],
+            debug: debugmode,
         })
     }
 
@@ -43,10 +46,12 @@ impl Memory {
     }
 
     pub fn write(&mut self, address: u16, value: u8, ppu: &mut Ppu) -> Result<(), MemoryError> {
-        println!(
-            "Writing value 0x{:02X} to address: 0x{:04X}",
-            value, address
-        );
+        self.debug.info_log(|| {
+            format!(
+                "Writing value 0x{:02X} to address: 0x{:04X}",
+                value, address
+            )
+        });
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {

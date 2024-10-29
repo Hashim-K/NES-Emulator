@@ -2,10 +2,12 @@ use crate::cpu::instructions::{AddressingMode, Instruction, InstructionType};
 use crate::error::{MemoryError, MyGetCpuError, MyTickError};
 use crate::memory::Memory;
 use crate::MainError;
+use debug::DebugMode;
 use interrupt_handler::InterruptState;
 use registers::{CpuRegister, ProgramCounter, StatusRegister, StatusRegisterBit};
 use tudelft_nes_ppu::{Cpu as CpuTemplate, Ppu};
 use tudelft_nes_test::TestableCpu;
+pub(crate) mod debug;
 mod instructions;
 mod interrupt_handler;
 mod registers;
@@ -38,6 +40,7 @@ pub struct Cpu {
     memory: Memory,
     total_cycles: u64,
     instructions_executed: u64,
+    debug: DebugMode,
 }
 
 /// Implementing this trait allows automated tests to be run on your cpu.
@@ -47,6 +50,7 @@ impl TestableCpu for Cpu {
     type GetCpuError = MyGetCpuError;
 
     fn get_cpu(_rom: &[u8]) -> Result<Self, MyGetCpuError> {
+        let debug: DebugMode = DebugMode::InfoDebug;
         Ok(Cpu {
             accumulator: CpuRegister::default(),
             x_register: CpuRegister::default(),
@@ -69,9 +73,10 @@ impl TestableCpu for Cpu {
             initialized: false,
             branch_success: false,
             page_crossing: false,
-            memory: Memory::new(_rom)?,
             total_cycles: 0,
             instructions_executed: 0,
+            debug: debug.clone(),
+            memory: Memory::new(_rom, debug)?,
         })
     }
 
@@ -93,9 +98,9 @@ impl CpuTemplate for Cpu {
     fn tick(&mut self, ppu: &mut Ppu) -> Result<(), MyTickError> {
         // set the cpu to the startup state fi
         if !self.initialized {
-            println!("Initializing CPU");
+            self.debug.info_log(|| format!("Initializing CPU"));
             self.initialize_cpu(ppu)?;
-            println!("CPU initialized\n\n");
+            self.debug.info_log(|| format!("CPU initialized\n\n"));
             Ok(())
         } else {
             if self.current_cycle == self.interrupt_polling_cycle {
@@ -115,7 +120,7 @@ impl CpuTemplate for Cpu {
 
                 match self.interrupt_state {
                     InterruptState::NMI => {
-                        println!("Executing NMI");
+                        self.debug.info_log(|| format!("Executing NMI"));
                         self.push_pc_and_status_on_stack(ppu)?;
                         let nmi_lobyte = self.memory.read(0xFFFA, self, ppu)?;
                         let nmi_hibyte = self.memory.read(0xFFFB, self, ppu)?;
@@ -133,20 +138,22 @@ impl CpuTemplate for Cpu {
                         todo!("Add interface for IRQ")
                     }
                     InterruptState::NormalOperation => {
-                        println!("\n\n---------------");
-                        // self.debug(self.memory.read(self.program_counter.get(), self, ppu)?);
+                        self.debug.info_log(|| format!("\n\n---------------"));
+                        self.debug(self.memory.read(self.program_counter.get(), self, ppu)?);
                         let opcode = self.read_next_value(ppu)?;
-                        println!("Opcode: {:02X}", opcode);
+                        self.debug.info_log(|| format!("Opcode: {:02X}", opcode));
                         let instruction: Instruction =
                             Instruction::decode(opcode).expect("Failed decoding opcode");
                         instruction.execute(self, ppu)?;
 
                         self.instruction_cycle_count =
                             Instruction::get_instruction_duration(opcode)?;
-                        println!(
-                            "Instruction cycle count set to {}",
-                            self.instruction_cycle_count
-                        );
+                        self.debug.info_log(|| {
+                            format!(
+                                "Instruction cycle count set to {}",
+                                self.instruction_cycle_count,
+                            )
+                        });
 
                         if self.page_crossing {
                             self.instruction_cycle_count += 1;
@@ -246,40 +253,46 @@ impl Cpu {
             let ppu_dots_per_scanline = 341;
             let ppu_dots = self.total_cycles * 3 % ppu_dots_per_scanline;
 
-            println!(
-                "{:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{:-3}",
-                self.program_counter.get(),
-                bytes,
-                instruction.instruction_type,
-                self.accumulator.get(),
-                self.x_register.get(),
-                self.y_register.get(),
-                self.status_register.get(),
-                self.stack_pointer.get(),
-                ppu_dots
-            );
+            self.debug.emu_log(|| {
+                format!(
+                    "{:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{:-3}",
+                    self.program_counter.get(),
+                    bytes,
+                    instruction.instruction_type,
+                    self.accumulator.get(),
+                    self.x_register.get(),
+                    self.y_register.get(),
+                    self.status_register.get(),
+                    self.stack_pointer.get(),
+                    ppu_dots,
+                )
+            });
         }
     }
 
     fn print_cpu_state_header(&self) {
-        println!("A |X |Y |SP |PC   |T/MT |NV-BDIZC |Instr# |CYCLE");
-        println!("----------------------------------------");
+        self.debug
+            .info_log(|| format!("A |X |Y |SP |PC   |T/MT |NV-BDIZC |Instr# |CYCLE"));
+        self.debug
+            .info_log(|| format!("----------------------------------------"));
     }
 
     fn print_cpu_state(&self) {
-        println!(
-            "{:02X}|{:02X}|{:02X}|{:02X} |{:04X} |{}/{}  |{:08b} |{}      |{}",
-            self.accumulator.get(),
-            self.x_register.get(),
-            self.y_register.get(),
-            self.stack_pointer.get(),
-            self.program_counter.get(),
-            self.current_cycle,
-            self.instruction_cycle_count,
-            self.status_register.get(),
-            self.instructions_executed,
-            self.total_cycles,
-        );
+        self.debug.info_log(|| {
+            format!(
+                "{:02X}|{:02X}|{:02X}|{:02X} |{:04X} |{}/{}  |{:08b} |{}      |{}",
+                self.accumulator.get(),
+                self.x_register.get(),
+                self.y_register.get(),
+                self.stack_pointer.get(),
+                self.program_counter.get(),
+                self.current_cycle,
+                self.instruction_cycle_count,
+                self.status_register.get(),
+                self.instructions_executed,
+                self.total_cycles,
+            )
+        });
     }
 
     fn get_operand_value(
@@ -294,12 +307,13 @@ impl Cpu {
             1 => (),
             2 => {
                 ll = self.read_next_value(ppu)?;
-                println!("ll: {:02X}", ll);
+                self.debug.info_log(|| format!("ll: {:02X}", ll));
             }
             3 => {
                 ll = self.read_next_value(ppu)?;
                 hh = self.read_next_value(ppu)?;
-                println!("ll: {:02X} hh: {:02X}", ll, hh);
+                self.debug
+                    .info_log(|| format!("ll: {:02X} hh: {:02X}", ll, hh));
             }
             _ => panic!("Unknown addressing mode"),
         }
@@ -402,12 +416,14 @@ impl Cpu {
                     .get()
                     .wrapping_add((ll & 0b0111_1111) as u16)
                     .wrapping_sub((ll & 0b1000_0000) as u16);
-                println!(
-                    "Old PC: {:04X} Offset:{} New PC: {:04X}",
-                    self.program_counter.get(),
-                    ll as i8,
-                    new_pc
-                );
+                self.debug.info_log(|| {
+                    format!(
+                        "Old PC: {:04X} Offset:{} New PC: {:04X}",
+                        self.program_counter.get(),
+                        ll as i8,
+                        new_pc,
+                    )
+                });
                 if ((new_pc & 0x0100) ^ (self.program_counter.get() & 0x0100)) == 0x0100 {
                     self.page_crossing = true;
                 }
@@ -448,13 +464,13 @@ impl Cpu {
 
     fn read_next_value(&mut self, ppu: &mut Ppu) -> Result<u8, MainError> {
         let value = self.memory.read(self.program_counter.get(), self, ppu)?;
-        // println!(
+        // self.debug.info_log(||format!(
         //     "PC: {:04X} Value: {:02X}",
         //     self.program_counter.get(),
         //     value
-        // );
+        // ));
         self.program_counter.increment();
-        // println!("NEWNEW PC: {:04X}", self.program_counter.get());
+        // self.debug.info_log(|| format!("NEWNEW PC: {:04X}", self.program_counter.get()));
         Ok(value)
     }
 
@@ -488,13 +504,15 @@ impl Cpu {
         let return_value: InterruptState;
         if self.nmi_line_triggered {
             return_value = InterruptState::NMI;
-            println!("Interrupt state NMI polled");
+            self.debug
+                .info_log(|| format!("Interrupt state NMI polled"));
         } else if self.irq_line_triggered {
             return_value = InterruptState::IRQ;
-            println!("Interrupt state IRQ polled");
+            self.debug
+                .info_log(|| format!("Interrupt state IRQ polled"));
         } else {
             return_value = InterruptState::NormalOperation;
-            // println!("Interrupt state NormalOperation polled");
+            // self.debug.info_log(|| "Interrupt state NormalOperation polled");
         }
         self.irq_line_triggered = false;
         self.nmi_line_triggered = false;
@@ -503,12 +521,12 @@ impl Cpu {
 
     fn initialize_cpu(&mut self, ppu: &mut Ppu) -> Result<(), MemoryError> {
         let lobyte = self.memory.read(0xFFFC, self, ppu)?;
-        println!("lobyte: {:02X}", lobyte);
+        self.debug.info_log(|| format!("lobyte: {:02X}", lobyte));
         let hibyte = self.memory.read(0xFFFD, self, ppu)?;
-        println!("hibyte: {:02X}", hibyte);
+        self.debug.info_log(|| format!("hibyte: {:02X}", hibyte));
         self.program_counter.set_lobyte(lobyte);
         self.program_counter.set_hibyte(hibyte);
-        // println!("program counter set to {}", self.program_counter.get());
+        // self.debug.info_log(|| format!("program counter set to {}", self.program_counter.get()));
         self.stack_pointer.set(0xFF);
         self.status_register
             .set_bit(StatusRegisterBit::Interrupt, true);
