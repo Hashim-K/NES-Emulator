@@ -1140,7 +1140,7 @@ impl Instruction {
                 let did_carry =
                     result < acc || (acc == 0 && carry == 1) || (result == 0xff && carry == 1);
                 let did_overflow = (acc > 127 && op_value > 127 && result < 128)
-                    || (acc < 128 && result < 128 && result > 127);
+                    || (acc < 128 && op_value < 128 && result > 127);
                 cpu.accumulator.set(result);
 
                 Self::set_status_if_zero(cpu.accumulator.get(), cpu);
