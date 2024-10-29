@@ -210,7 +210,7 @@ impl Cartridge {
         let mut cartridge_chr_rom: Vec<u8> = vec![];
         if header.charactor_memory_size != 0 {
             cartridge_chr_rom
-                .append(&mut rom_bytes[(prg_rom_end_index)..(rom_bytes.len() - 272)].to_vec());
+                .append(&mut rom_bytes[prg_rom_end_index..(rom_bytes.len() - 272)].to_vec());
         } else {
             let chr_ram: [u8; 8192] = [0; 8192];
             cartridge_chr_rom.append(&mut chr_ram.to_vec());
@@ -316,10 +316,11 @@ impl Cartridge {
                         match address {
                             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
                             0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000) as usize]), // fix first bank to 0x8000
-                            0xc000..0xff00 => Ok(self.prg_data[(address - 0xc000
-                                + 0x4000
-                                + ((self.prg_bank as u16) * 16384))
-                                as usize]), // make 0x8000 - 0xc000 switchable
+                            0xc000..0xff00 => {
+                                let target: u32 =
+                                    address as u32 - 0xc000 + (self.prg_bank as u32) * 16384;
+                                Ok(self.prg_data[target as usize]) // make 0x8000 - 0xc000 switchable
+                            }
                             0xff00.. => Ok(self.init_code[(address - 0xff00) as usize]),
                             _ => return Err(RomError::UnknownAddress),
                         }
