@@ -457,13 +457,13 @@ impl Cpu {
 
     fn read_next_value(&mut self, ppu: &mut Ppu) -> Result<u8, MainError> {
         let value = self.memory.read(self.program_counter.get(), self, ppu)?;
-        // self.debug.info_log(||format!(
-        //     "PC: {:04X} Value: {:02X}",
-        //     self.program_counter.get(),
-        //     value
-        // ));
+        self.debug.info_log(format!(
+            "PC: {:04X} Value: {:02X} Next PC: {:04X}",
+            self.program_counter.get(),
+            value,
+            self.program_counter.get() + 1
+        ));
         self.program_counter.increment();
-        // self.debug.info_log(format!("NEWNEW PC: {:04X}", self.program_counter.get()));
         Ok(value)
     }
 
