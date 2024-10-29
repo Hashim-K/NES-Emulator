@@ -46,12 +46,10 @@ impl Memory {
     }
 
     pub fn write(&mut self, address: u16, value: u8, ppu: &mut Ppu) -> Result<(), MemoryError> {
-        self.debug.info_log(|| {
-            format!(
-                "Writing value 0x{:02X} to address: 0x{:04X}",
-                value, address
-            )
-        });
+        self.debug.info_log(format!(
+            "Writing value 0x{:02X} to address: 0x{:04X}",
+            value, address
+        ));
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {

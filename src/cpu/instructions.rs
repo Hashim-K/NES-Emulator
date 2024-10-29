@@ -1578,12 +1578,10 @@ impl Instruction {
             out_addr = format!("0x{:04X}", operand_value.address.unwrap());
         }
 
-        debug.info_log(|| {
-            format!(
-                "Instruction:{:?} Addressing Mode:{:?} - Operand (Value: {:?}, Address: {:?})",
-                self.instruction_type, self.addressing_mode, out_val, out_addr
-            )
-        });
+        debug.info_log(format!(
+            "Instruction:{:?} Addressing Mode:{:?} - Operand (Value: {:?}, Address: {:?})",
+            self.instruction_type, self.addressing_mode, out_val, out_addr
+        ));
     }
 }
 
