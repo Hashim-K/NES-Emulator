@@ -48,9 +48,9 @@ impl Memory {
                 let _register = address_to_ppu_register(address);
                 ppu.write_ppu_register(_register, value)
             } // NES PPU registers
-            0x4000..0x4016 => todo!(), // NES APU and I/O registers
+            0x4000..0x4016 => {} // TODO: NES APU and I/O registers
             0x4016 => self.controller.borrow_mut().write(value), // NES APU and I/O registers
-            0x4017..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
+            0x4017..0x4020 => {} // TODO: APU and I/O functionality that is normally disabled
             0x4020.. => return self.cartridge.write(address, value), // Cartridge memory
         };
 
@@ -74,12 +74,12 @@ impl Memory {
             0x2000..0x4000 => {
                 panic!("You have to use the read function if you want to access the ppu memory")
             }
-            0x4000..0x4016 => todo!(), // NES APU and I/O registers
+            0x4000..0x4016 => Ok(0), // Open bus, undefined behavior
             0x4016 => {
                 panic!("You have to use the read function if you want to access the controller")
             }
-            0x4017 => Ok(0),           // TODO: impelement controller 2
-            0x4018..0x4020 => todo!(), // APU and I/O functionality that is normally disabled
+            0x4017 => Ok(0),         // TODO: impelement controller 2
+            0x4018..0x4020 => Ok(0), // Open bus, undefined behavior
             0x4020.. => Ok(self.cartridge.read(address)?), // Cartridge memory
         };
 
