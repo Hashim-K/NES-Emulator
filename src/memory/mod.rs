@@ -1,3 +1,4 @@
+use crate::cpu::debug::{self, DebugMode};
 use crate::cpu::Cpu;
 use crate::error::{MemoryError, RomError};
 use std::cell::RefCell;
@@ -26,22 +27,33 @@ pub struct Memory {
     internal_ram: [u8; 2048],
     cartridge: Cartridge,
     controller: RefCell<Controller>,
+    debug: DebugMode,
 }
 
 impl Memory {
-    pub fn new(rom_bytes: &[u8]) -> Result<Memory, RomError> {
+    pub fn new(rom_bytes: &[u8], debugmode: DebugMode) -> Result<Memory, RomError> {
         Ok(Memory {
             cartridge: Cartridge::new(rom_bytes)?,
             internal_ram: [0; 2048],
             controller: RefCell::new(Controller::new()),
+            debug: debugmode,
         })
     }
 
+    pub fn write_ppu_byte(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
+        self.cartridge.chr_data[address as usize] = value;
+        Ok(())
+    }
+
     pub fn read_ppu_byte(&self, address: u16) -> Result<u8, MemoryError> {
-        Ok(self.cartridge.chr_data[address as usize])
+        return Ok(self.cartridge.chr_data[address as usize]);
     }
 
     pub fn write(&mut self, address: u16, value: u8, ppu: &mut Ppu) -> Result<(), MemoryError> {
+        self.debug.info_log(format!(
+            "Writing value 0x{:02X} to address: 0x{:04X}",
+            value, address
+        ));
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {
@@ -58,18 +70,20 @@ impl Memory {
     }
 
     pub fn read(&self, address: u16, cpu: &Cpu, ppu: &mut Ppu) -> Result<u8, MemoryError> {
-        match address {
+        let value = match address {
             0x2000..0x4000 => {
                 let register = address_to_ppu_register(address);
                 Ok(ppu.read_ppu_register(register, cpu))
             }
             0x4016 => Ok(self.controller.borrow_mut().read(ppu)),
             _ => self.read_cpu_mem(address),
-        }
+        };
+
+        return value;
     }
 
     pub fn read_cpu_mem(&self, address: u16) -> Result<u8, MemoryError> {
-        let value = match address {
+        match address {
             ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]), // RAM reading, including mirroring
             0x2000..0x4000 => {
                 panic!("You have to use the read function if you want to access the ppu memory")
@@ -81,17 +95,7 @@ impl Memory {
             0x4017 => Ok(0),         // TODO: impelement controller 2
             0x4018..0x4020 => Ok(0), // Open bus, undefined behavior
             0x4020.. => Ok(self.cartridge.read(address)?), // Cartridge memory
-        };
-
-        // Debug printing
-        if value.is_ok() {
-            let tmp = value.unwrap();
-            println!("Read memory byte at address {}: {:?}", address, tmp);
-            return Ok(tmp);
-        } else {
-            println!("Read memory byte at address {}: FAILED", address);
         }
-        value
     }
 }
 
@@ -117,8 +121,6 @@ impl Cartridge {
     fn parse_header(rom_bytes: &[u8]) -> Result<RomHeader, RomError> {
         // Check rom signature
         if rom_bytes[0..4] != *(b"NES\x1a") {
-            println!("{:?}", b"NES\x1a");
-            println!("{:?}", &rom_bytes[0..4]);
             return Err(RomError::IncorrectSignature);
         }
 
@@ -139,8 +141,6 @@ impl Cartridge {
 
     fn new(rom_bytes: &[u8]) -> Result<Cartridge, RomError> {
         let header = Self::parse_header(rom_bytes)?;
-        println!("{:?}", header.program_rom_size);
-        println!("{:?}", header.charactor_memory_size);
         match header.mapper_number {
             0 => {
                 // check if amount of data is correct
@@ -150,16 +150,16 @@ impl Cartridge {
                 {
                     return Err(RomError::IncorrectDataSize);
                 }
-                let cartridge_prg_rom: Vec<u8> = if header.program_rom_size == 1 {
+                let mut cartridge_prg_rom: Vec<u8> = if header.program_rom_size == 1 {
                     rom_bytes[16..16400].to_vec()
                 } else {
                     rom_bytes[16..32784].to_vec()
                 };
-                let cartridge_chr_rom: Vec<u8> = rom_bytes[16400..].to_vec();
+                let mut Cartridge_chr_rom: Vec<u8> = rom_bytes[16400..].to_vec();
                 Ok(Cartridge {
                     header,
                     prg_data: cartridge_prg_rom,
-                    chr_data: cartridge_chr_rom,
+                    chr_data: Cartridge_chr_rom,
                     // pgr ram needs to mirror itself to fill 8kib
                     pgr_ram: [0; 8192],
                 })
@@ -187,7 +187,6 @@ impl Cartridge {
     }
 
     fn read(&self, address: u16) -> Result<u8, RomError> {
-        println!("{}", self.prg_data.len());
         match address {
             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
             0x8000..0xc000 => Ok(self.prg_data[(address & 0x7FFF) as usize]), // first 16 KiB of prg rom
@@ -238,7 +237,7 @@ fn test_new_cartridge() {
     };
     // expect file with exact amount of bytes as specified by the header to work (ROM_NROM_TEST length = 24592)
     assert_eq!(
-        Cartridge::new(ROM_NROM_TEST).unwrap(),
+        Cartridge::new(&ROM_NROM_TEST).unwrap(),
         expected_correct_cartridge
     );
     // expect a file that does not have the amount of bytes specified by the header to generate an error

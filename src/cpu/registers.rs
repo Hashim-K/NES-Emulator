@@ -35,8 +35,8 @@ impl StatusRegister {
             | (self.zero_bit as u8) << 1
             | (self.interrupt_bit as u8) << 2
             | (self.decimal_bit as u8) << 3
-            | 1 << 4
-            | 1 << 5
+            | 1 << 4 // BREAK
+            | 1 << 5 // Unused
             | (self.overflow_bit as u8) << 6
             | (self.negative_bit as u8) << 7
     }
