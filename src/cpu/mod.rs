@@ -37,6 +37,7 @@ pub struct Cpu {
     page_crossing: bool,
     memory: Memory,
     total_cycles: u64,
+    instructions_executed: u64,
 }
 
 /// Implementing this trait allows automated tests to be run on your cpu.
@@ -70,11 +71,12 @@ impl TestableCpu for Cpu {
             page_crossing: false,
             memory: Memory::new(_rom)?,
             total_cycles: 0,
+            instructions_executed: 0,
         })
     }
 
     fn set_program_counter(&mut self, _value: u16) {
-        todo!()
+        self.program_counter.set(_value);
     }
 
     fn memory_read(&self, _address: u16) -> u8 {
@@ -164,6 +166,7 @@ impl CpuTemplate for Cpu {
                             self.instruction_cycle_count -= 1;
                         }
                         self.current_instruction = instruction;
+                        self.instructions_executed += 1;
                         self.print_cpu_state_header();
                     }
                 }
@@ -259,13 +262,13 @@ impl Cpu {
     }
 
     fn print_cpu_state_header(&self) {
-        println!("A |X |Y |SP |PC   |T/MT |NV-BDIZC |CYCLE");
+        println!("A |X |Y |SP |PC   |T/MT |NV-BDIZC |Instr# |CYCLE");
         println!("----------------------------------------");
     }
 
     fn print_cpu_state(&self) {
         println!(
-            "{:02X}|{:02X}|{:02X}|{:02X} |{:04X} |{}/{}  |{:08b} |{}",
+            "{:02X}|{:02X}|{:02X}|{:02X} |{:04X} |{}/{}  |{:08b} |{}      |{}",
             self.accumulator.get(),
             self.x_register.get(),
             self.y_register.get(),
@@ -274,7 +277,8 @@ impl Cpu {
             self.current_cycle,
             self.instruction_cycle_count,
             self.status_register.get(),
-            self.total_cycles
+            self.instructions_executed,
+            self.total_cycles,
         );
     }
 
@@ -514,6 +518,7 @@ impl Cpu {
         self.interrupt_polling_cycle = 0;
         self.initialized = true;
         self.total_cycles = 0;
+        self.instructions_executed = 0;
         self.print_cpu_state();
 
         Ok(())
