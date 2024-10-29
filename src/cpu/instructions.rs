@@ -1556,15 +1556,15 @@ impl Instruction {
 
     // Return true if instruction is Read-Modify-Write
     pub fn is_rmw(&self) -> bool {
-        match self.instruction_type {
+        matches!(
+            self.instruction_type,
             InstructionType::ASL
-            | InstructionType::DEC
-            | InstructionType::INC
-            | InstructionType::LSR
-            | InstructionType::ROL
-            | InstructionType::ROR => true,
-            _ => true,
-        }
+                | InstructionType::DEC
+                | InstructionType::INC
+                | InstructionType::LSR
+                | InstructionType::ROL
+                | InstructionType::ROR
+        )
     }
 
     pub fn print_instruction(&self, operand_value: &OperandValue, debug: &DebugMode) {
