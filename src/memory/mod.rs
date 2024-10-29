@@ -210,7 +210,7 @@ impl Cartridge {
         let mut cartridge_chr_rom: Vec<u8> = vec![];
         if header.charactor_memory_size != 0 {
             cartridge_chr_rom
-                .append(&mut rom_bytes[(prg_rom_end_index)..(prg_rom_end_index - 256)].to_vec());
+                .append(&mut rom_bytes[(prg_rom_end_index)..(rom_bytes.len() - 272)].to_vec());
         } else {
             let chr_ram: [u8; 8192] = [0; 8192];
             cartridge_chr_rom.append(&mut chr_ram.to_vec());
