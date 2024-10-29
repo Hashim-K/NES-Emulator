@@ -1,5 +1,8 @@
 use crate::cpu::Cpu;
 use crate::error::{MemoryError, RomError};
+use tudelft_nes_ppu::Buttons;
+use tudelft_nes_ppu::Ppu;
+use tudelft_nes_ppu::PpuRegister;
 use tudelft_nes_ppu::{Mirroring, Ppu, PpuRegister};
 
 #[cfg(test)]
@@ -236,4 +239,51 @@ fn test_new_cartridge() {
         Cartridge::new(&ROM_NROM_TEST[0..24231]).unwrap_err(),
         RomError::IncorrectDataSize
     );
+}
+
+struct Controller {
+    strobe: bool,
+    buttons: Buttons,
+    read_index: u8,
+}
+
+impl Controller {
+    fn write(&mut self, byte: u8) {
+        self.strobe = (byte & 0b1) == 1;
+    }
+
+    fn clock_pulse(&mut self, ppu: Ppu) {
+        if self.strobe {
+            self.buttons = ppu.get_joypad_state();
+        }
+    }
+
+    fn read(&mut self) -> u8 {
+        let result = u8::from(match self.read_index {
+            0 => self.buttons.a,
+            1 => self.buttons.b,
+            2 => self.buttons.select,
+            3 => self.buttons.start,
+            4 => self.buttons.up,
+            5 => self.buttons.down,
+            6 => self.buttons.left,
+            7 => self.buttons.right,
+            _ => panic!("Button reading out of bounds"),
+        });
+
+        // Advance reading index
+        self.read_index += 1;
+        if self.read_index > 7 {
+            self.read_index = 0
+        }
+        result
+    }
+
+    fn new() -> Self {
+        Controller {
+            strobe: false,
+            buttons: Buttons::default(),
+            read_index: 0,
+        }
+    }
 }
