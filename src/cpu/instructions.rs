@@ -1251,7 +1251,7 @@ impl Instruction {
 
             InstructionType::LSR => {
                 let operator_value = operand_value.value.expect("Operand value for LSR is None");
-                let result = operator_value << 1;
+                let result = operator_value >> 1;
                 cpu.status_register
                     .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 7) != 0);
                 Self::set_status_if_zero(result, cpu);
