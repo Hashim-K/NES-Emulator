@@ -518,7 +518,7 @@ impl Cpu {
         self.program_counter.set_lobyte(lobyte);
         self.program_counter.set_hibyte(hibyte);
         // self.debug.info_log(format!("program counter set to {}", self.program_counter.get()));
-        self.stack_pointer.set(0xFF);
+        self.stack_pointer.set(0xFD);
         self.status_register
             .set_bit(StatusRegisterBit::Interrupt, true);
 
