@@ -43,19 +43,20 @@ impl Memory {
 
     pub fn write_ppu_byte(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
         if self.cartridge.header.charactor_memory_size != 0 {
-            if self.cartridge.chr_bank_mode == CharacterBankMode::Fullswitch{
+            if self.cartridge.chr_bank_mode == CharacterBankMode::Fullswitch {
                 let banknr: u32 = self.cartridge.chr_bank_0 as u32 >> 1;
                 let target: u32 = address as u32 + banknr * 0x2000;
                 self.cartridge.chr_data[target as usize] = value;
-            }
-            else{
-                match address{
+            } else {
+                match address {
                     0x0000..0x1000 => {
-                        let target: u32 = address as u32 + self.cartridge.chr_bank_0 as u32 * 0x1000;
+                        let target: u32 =
+                            address as u32 + self.cartridge.chr_bank_0 as u32 * 0x1000;
                         self.cartridge.chr_data[target as usize] = value;
                     }
                     0x1000..0x2000 => {
-                        let target: u32 = address as u32 + self.cartridge.chr_bank_0 as u32 * 0x1000;
+                        let target: u32 =
+                            address as u32 + self.cartridge.chr_bank_0 as u32 * 0x1000;
                         self.cartridge.chr_data[target as usize] = value;
                     }
                     _ => return Err(MemoryError::UnknownAddress),
@@ -63,7 +64,8 @@ impl Memory {
             }
         } else {
             if address > 0x2000 {
-                self.debug.info_log(format!("address too large: {:4X}", address));
+                self.debug
+                    .info_log(format!("address too large: {:4X}", address));
             }
             self.cartridge.chr_ram[address as usize] = value;
         }
@@ -72,27 +74,29 @@ impl Memory {
 
     pub fn read_ppu_byte(&self, address: u16) -> Result<u8, MemoryError> {
         if self.cartridge.header.charactor_memory_size != 0 {
-            if self.cartridge.chr_bank_mode == CharacterBankMode::Fullswitch{
+            if self.cartridge.chr_bank_mode == CharacterBankMode::Fullswitch {
                 let banknr: u32 = self.cartridge.chr_bank_0 as u32 >> 1;
                 let target: u32 = address as u32 + banknr * 0x2000;
                 Ok(self.cartridge.chr_data[target as usize])
-            }
-            else{
-                match address{
+            } else {
+                match address {
                     0x0000..0x1000 => {
-                        let target: u32 = address as u32 + self.cartridge.chr_bank_0 as u32 * 0x1000;
+                        let target: u32 =
+                            address as u32 + self.cartridge.chr_bank_0 as u32 * 0x1000;
                         Ok(self.cartridge.chr_data[target as usize])
                     }
                     0x1000..0x2000 => {
-                        let target: u32 = address as u32 + self.cartridge.chr_bank_0 as u32 * 0x1000;
+                        let target: u32 =
+                            address as u32 + self.cartridge.chr_bank_0 as u32 * 0x1000;
                         Ok(self.cartridge.chr_data[target as usize])
                     }
-                    _ => Err(MemoryError::UnknownAddress)
+                    _ => Err(MemoryError::UnknownAddress),
                 }
             }
         } else {
             if address > 0x2000 {
-                self.debug.info_log(format!("address too large: {:4X}", address));
+                self.debug
+                    .info_log(format!("address too large: {:4X}", address));
             }
             Ok(self.cartridge.chr_ram[address as usize])
         }
@@ -128,7 +132,10 @@ impl Memory {
             _ => self.read_cpu_mem(address),
         };
         // Debug printing
-        self.debug.info_log(format!("Currently in prg bank: {:?}, with mode: {:?}", self.cartridge.prg_bank, self.cartridge.prg_bank_mode));
+        self.debug.info_log(format!(
+            "Currently in prg bank: {:?}, with mode: {:?}",
+            self.cartridge.prg_bank, self.cartridge.prg_bank_mode
+        ));
         if value.is_ok() {
             let tmp = value.unwrap();
             self.debug.info_log(format!(
@@ -151,7 +158,7 @@ impl Memory {
             ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]),
             // NES PPU registers
             0x2000..0x4000 => self.read_ppu_byte(address),
-                //panic!("You have to use the read function if you want to access the ppu memory")
+            //panic!("You have to use the read function if you want to access the ppu memory")
             //}
             // Open bus, undefined behavior
             0x4000..0x4016 => Ok(0),
@@ -303,12 +310,11 @@ impl Cartridge {
                 }
             }
             1 => {
-                if (value & 0b10000000 )== 128{
+                if (value & 0b10000000) == 128 {
                     self.header.mirroring = Mirroring::SingleScreenLower;
                     self.prg_bank_mode = ProgramBankMode::Fixlast;
                     self.chr_bank_mode = CharacterBankMode::Fullswitch;
-                }
-                else {
+                } else {
                     if (self.shift_register & 1) != 1 {
                         self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
                     } else {
@@ -354,7 +360,6 @@ impl Cartridge {
                         self.shift_register = 16;
                     }
                 }
-                    
             }
             a => Err(RomError::UnknownMapper(a))?,
         }
@@ -376,13 +381,14 @@ impl Cartridge {
             1 => {
                 match self.prg_bank_mode {
                     ProgramBankMode::Fullswitch => {
-                        let banknr = self.prg_bank & 0x0F; 
+                        let banknr = self.prg_bank & 0x0F;
                         match address {
                             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
                             0x8000.. => {
-                                let target: u32 = address as u32 - 0x8000 + (banknr as u32 * 0x8000);
+                                let target: u32 =
+                                    address as u32 - 0x8000 + (banknr as u32 * 0x8000);
                                 Ok(self.prg_data[target as usize])
-                            },          // switch in 32kb blocks
+                            } // switch in 32kb blocks
                             _ => return Err(RomError::UnknownAddress),
                         }
                     }
