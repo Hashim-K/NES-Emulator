@@ -2,6 +2,7 @@ use crate::cpu::debug::{self, DebugMode};
 use crate::cpu::Cpu;
 use crate::error::{MemoryError, RomError};
 use std::cell::RefCell;
+use std::ops::Deref;
 use tudelft_nes_ppu::Buttons;
 use tudelft_nes_ppu::{Mirroring, Ppu, PpuRegister};
 
@@ -41,19 +42,67 @@ impl Memory {
     }
 
     pub fn write_ppu_byte(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
-        self.cartridge.chr_data[address as usize] = value;
+        if self.cartridge.header.charactor_memory_size != 0 {
+            if self.cartridge.chr_bank_mode == CharacterBankMode::Fullswitch{
+                let banknr: u32 = self.cartridge.chr_bank_0 as u32 >> 1;
+                let target: u32 = address as u32 + banknr * 0x2000;
+                self.cartridge.chr_data[target as usize] = value;
+            }
+            else{
+                match address{
+                    0x0000..0x1000 => {
+                        let target: u32 = address as u32 + self.cartridge.chr_bank_0 as u32 * 0x1000;
+                        self.cartridge.chr_data[target as usize] = value;
+                    }
+                    0x1000..0x2000 => {
+                        let target: u32 = address as u32 + self.cartridge.chr_bank_0 as u32 * 0x1000;
+                        self.cartridge.chr_data[target as usize] = value;
+                    }
+                    _ => return Err(MemoryError::UnknownAddress),
+                }
+            }
+        } else {
+            if address > 0x2000 {
+                self.debug.info_log(format!("address too large: {:4X}", address));
+            }
+            self.cartridge.chr_ram[address as usize] = value;
+        }
         Ok(())
     }
 
     pub fn read_ppu_byte(&self, address: u16) -> Result<u8, MemoryError> {
-        return Ok(self.cartridge.chr_data[address as usize]);
+        if self.cartridge.header.charactor_memory_size != 0 {
+            if self.cartridge.chr_bank_mode == CharacterBankMode::Fullswitch{
+                let banknr: u32 = self.cartridge.chr_bank_0 as u32 >> 1;
+                let target: u32 = address as u32 + banknr * 0x2000;
+                Ok(self.cartridge.chr_data[target as usize])
+            }
+            else{
+                match address{
+                    0x0000..0x1000 => {
+                        let target: u32 = address as u32 + self.cartridge.chr_bank_0 as u32 * 0x1000;
+                        Ok(self.cartridge.chr_data[target as usize])
+                    }
+                    0x1000..0x2000 => {
+                        let target: u32 = address as u32 + self.cartridge.chr_bank_0 as u32 * 0x1000;
+                        Ok(self.cartridge.chr_data[target as usize])
+                    }
+                    _ => Err(MemoryError::UnknownAddress)
+                }
+            }
+        } else {
+            if address > 0x2000 {
+                self.debug.info_log(format!("address too large: {:4X}", address));
+            }
+            Ok(self.cartridge.chr_ram[address as usize])
+        }
     }
 
     pub fn write(&mut self, address: u16, value: u8, ppu: &mut Ppu) -> Result<(), MemoryError> {
-        self.debug.info_log(format!(
-            "Writing value 0x{:02X} to address: 0x{:04X}",
-            value, address
-        ));
+        //self.debug.info_log(format!(
+        //    "Writing value 0x{:02X} to address: 0x{:04X}",
+        //    value, address
+        //));
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {
@@ -78,8 +127,8 @@ impl Memory {
             0x4016 => Ok(self.controller.borrow_mut().read(ppu)),
             _ => self.read_cpu_mem(address),
         };
-
         // Debug printing
+        self.debug.info_log(format!("Currently in prg bank: {:?}, with mode: {:?}", self.cartridge.prg_bank, self.cartridge.prg_bank_mode));
         if value.is_ok() {
             let tmp = value.unwrap();
             self.debug.info_log(format!(
@@ -101,9 +150,9 @@ impl Memory {
             // RAM reading, including mirroring
             ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]),
             // NES PPU registers
-            0x2000..0x4000 => {
-                panic!("You have to use the read function if you want to access the ppu memory")
-            }
+            0x2000..0x4000 => self.read_ppu_byte(address),
+                //panic!("You have to use the read function if you want to access the ppu memory")
+            //}
             // Open bus, undefined behavior
             0x4000..0x4016 => Ok(0),
             0x4016 => {
@@ -162,6 +211,7 @@ pub struct Cartridge {
     prg_bank_mode: ProgramBankMode,
     chr_bank_mode: CharacterBankMode,
     pgr_ram: [u8; 8192], // 8 KiB of program ram
+    chr_ram: [u8; 8192],
     init_code: Vec<u8>,
     debug: DebugMode,
 }
@@ -229,12 +279,13 @@ impl Cartridge {
             chr_data: cartridge_chr_rom,
             prg_bank: 0,
             chr_bank_0: 0,
-            chr_bank_1: 1,
+            chr_bank_1: 0,
             shift_register: 16,
             prg_bank_mode: ProgramBankMode::Fixlast,
             chr_bank_mode: CharacterBankMode::Fullswitch,
             // pgr ram needs to mirror itself to fill 8kib
             pgr_ram: [0; 8192],
+            chr_ram: [0; 8192],
             init_code: cartridge_init_code,
             debug: debug,
         })
@@ -252,36 +303,58 @@ impl Cartridge {
                 }
             }
             1 => {
-                if (self.shift_register & 1) != 1 {
-                    self.shift_register = (self.shift_register >> 1) + ((value & 1) << 4)
-                } else {
-                    match address {
-                        0x8000..0xa000 => {
-                            match self.shift_register & 3 {
-                                0 => self.header.mirroring = Mirroring::SingleScreenLower,
-                                1 => self.header.mirroring = Mirroring::SingleScreenUpper,
-                                2 => self.header.mirroring = Mirroring::Horizontal,
-                                3 => self.header.mirroring = Mirroring::Vertical,
-                                _ => return Err(MemoryError::ShiftAddressError),
+                if (value & 0b10000000 )== 128{
+                    self.header.mirroring = Mirroring::SingleScreenLower;
+                    self.prg_bank_mode = ProgramBankMode::Fixlast;
+                    self.chr_bank_mode = CharacterBankMode::Fullswitch;
+                }
+                else {
+                    if (self.shift_register & 1) != 1 {
+                        self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
+                    } else {
+                        self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
+                        match address {
+                            0x8000..0xa000 => {
+                                //self.debug.info_log(format!("editing control register to {:08b}", self.shift_register));
+                                match self.shift_register & 3 {
+                                    0 => self.header.mirroring = Mirroring::SingleScreenLower,
+                                    1 => self.header.mirroring = Mirroring::SingleScreenUpper,
+                                    2 => self.header.mirroring = Mirroring::Horizontal,
+                                    3 => self.header.mirroring = Mirroring::Vertical,
+                                    _ => return Err(MemoryError::ShiftAddressError),
+                                }
+                                match (self.shift_register >> 2) & 3 {
+                                    0 | 1 => self.prg_bank_mode = ProgramBankMode::Fullswitch,
+                                    2 => self.prg_bank_mode = ProgramBankMode::Fixfirst,
+                                    3 => self.prg_bank_mode = ProgramBankMode::Fixlast,
+                                    _ => return Err(MemoryError::ShiftAddressError),
+                                }
+                                if (self.shift_register >> 4) & 1 == 0 {
+                                    //self.debug.info_log(format!("changed chr bank mode to fullswitch"));
+                                    self.chr_bank_mode = CharacterBankMode::Fullswitch
+                                } else {
+                                    //self.debug.info_log(format!("changed chr bank mode to halfswitch"));
+                                    self.chr_bank_mode = CharacterBankMode::Halfswitch
+                                }
                             }
-                            match (self.shift_register >> 2) & 3 {
-                                0 | 1 => self.prg_bank_mode = ProgramBankMode::Fullswitch,
-                                2 => self.prg_bank_mode = ProgramBankMode::Fixfirst,
-                                3 => self.prg_bank_mode = ProgramBankMode::Fixlast,
-                                _ => return Err(MemoryError::ShiftAddressError),
+                            0xa000..0xc000 => {
+                                //self.debug.info_log(format!("editing chr0 register to {:08b}", self.shift_register));
+                                self.chr_bank_0 = self.shift_register;
                             }
-                            if (self.shift_register >> 4) & 1 == 0 {
-                                self.chr_bank_mode = CharacterBankMode::Fullswitch
-                            } else {
-                                self.chr_bank_mode = CharacterBankMode::Halfswitch
+                            0xc000..0xe000 => {
+                                //self.debug.info_log(format!("editing chr1 register to {:08b}", self.shift_register));
+                                self.chr_bank_1 = self.shift_register;
                             }
+                            0xe000.. => {
+                                //self.debug.info_log(format!("editing prg register to {:08b}", self.shift_register));
+                                self.prg_bank = self.shift_register;
+                            }
+                            _ => return Err(MemoryError::MapperAddressError(address)),
                         }
-                        0xa000..0xc000 => self.chr_bank_0 = self.shift_register,
-                        0xc000..0xe000 => self.chr_bank_1 = self.shift_register,
-                        0xe000.. => self.prg_bank = self.shift_register,
-                        _ => return Err(MemoryError::MapperAddressError(address)),
+                        self.shift_register = 16;
                     }
                 }
+                    
             }
             a => Err(RomError::UnknownMapper(a))?,
         }
@@ -303,12 +376,13 @@ impl Cartridge {
             1 => {
                 match self.prg_bank_mode {
                     ProgramBankMode::Fullswitch => {
-                        let banknr = self.prg_bank >> 1;
+                        let banknr = self.prg_bank & 0x0F; 
                         match address {
                             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
-                            0x8000..0xff00 => Ok(self.prg_data
-                                [(address - 0x8000 + ((banknr - 1) as u16) * 16384) as usize]), // switch in 32kb blocks
-                            0xff00.. => Ok(self.init_code[(address - 0xff00) as usize]),
+                            0x8000.. => {
+                                let target: u32 = address as u32 - 0x8000 + (banknr as u32 * 0x8000);
+                                Ok(self.prg_data[target as usize])
+                            },          // switch in 32kb blocks
                             _ => return Err(RomError::UnknownAddress),
                         }
                     }
@@ -316,12 +390,11 @@ impl Cartridge {
                         match address {
                             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
                             0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000) as usize]), // fix first bank to 0x8000
-                            0xc000..0xff00 => {
+                            0xc000.. => {
                                 let target: u32 =
-                                    address as u32 - 0xc000 + (self.prg_bank as u32) * 16384;
-                                Ok(self.prg_data[target as usize]) // make 0x8000 - 0xc000 switchable
+                                    address as u32 - 0xc000 + (self.prg_bank as u32) * 0x4000;
+                                Ok(self.prg_data[target as usize]) // make 0xc000 - 0x switchable
                             }
-                            0xff00.. => Ok(self.init_code[(address - 0xff00) as usize]),
                             _ => return Err(RomError::UnknownAddress),
                         }
                     }
