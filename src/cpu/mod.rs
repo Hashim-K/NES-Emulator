@@ -97,7 +97,7 @@ impl CpuTemplate for Cpu {
     type TickError = MyTickError;
 
     fn ppu_memory_write(&mut self, _address: u16, _value: u8) {
-        if let Err(x) = self.memory.write_ppu_byte(_address, _value){
+        if let Err(x) = self.memory.write_ppu_byte(_address, _value) {
             warn!("Ppu write error: {}", x);
         }
     }
@@ -161,11 +161,6 @@ impl CpuTemplate for Cpu {
                             self.instruction_cycle_count,
                         ));
 
-                        if self.page_crossing {
-                            self.instruction_cycle_count += 1;
-                            self.page_crossing = false;
-                        }
-
                         // make sure the interrupts are polled before the second cycle of the conditional branch operations
                         // it could still be wrong, i dont understand this part on nesdev
                         self.interrupt_polling_cycle = self.instruction_cycle_count;
@@ -176,8 +171,13 @@ impl CpuTemplate for Cpu {
                         }
 
                         if !self.current_instruction.is_rmw() {
-                            self.instruction_cycle_count -= 0;
+                            if self.page_crossing {
+                                self.instruction_cycle_count += 1;
+                            }
+                            // add the rmw timing here
                         }
+
+                        self.page_crossing = false;
                         self.current_instruction = instruction;
                         self.instructions_executed += 1;
                         self.print_cpu_state_header();
@@ -338,26 +338,26 @@ impl Cpu {
             // abs,X	    absolute, X-indexed	    OPC $LLHH,X	    operand is address; effective address is address incremented by X with carry **
             AddressingMode::AbsoluteX => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
+                let new_address = address.wrapping_add(self.x_register.get() as u16);
+                if ((new_address & 0x0100) ^ (address & 0x0100)) == 0x0100 {
+                    self.page_crossing = true;
+                }
                 Ok(OperandValue {
                     address: Some(address + self.x_register.get() as u16),
-                    value: Some(self.memory.read(
-                        address + self.x_register.get() as u16,
-                        self,
-                        ppu,
-                    )?),
+                    value: Some(self.memory.read(new_address, self, ppu)?),
                 })
             }
 
             // abs,Y	    absolute, Y-indexed	    OPC $LLHH,Y	    operand is address; effective address is address incremented by Y with carry **
             AddressingMode::AbsoluteY => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
+                let new_address = address.wrapping_add(self.x_register.get() as u16);
+                if ((new_address & 0x0100) ^ (address & 0x0100)) == 0x0100 {
+                    self.page_crossing = true;
+                }
                 Ok(OperandValue {
                     address: Some(address + self.y_register.get() as u16),
-                    value: Some(self.memory.read(
-                        address + self.y_register.get() as u16,
-                        self,
-                        ppu,
-                    )?),
+                    value: Some(self.memory.read(new_address, self, ppu)?),
                 })
             }
 
@@ -387,7 +387,7 @@ impl Cpu {
 
             // X,ind	    X-indexed, indirect	    OPC ($LL,X)	    operand is zeropage address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)
             AddressingMode::IndirectX => {
-                let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
+                let address: u16 = ll.wrapping_add(self.x_register.get()) as u16;
                 let memory_ll: u8 = self.memory.read(address, self, ppu)?;
                 let memory_hh: u8 = self.memory.read(address + 1, self, ppu)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
