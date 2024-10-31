@@ -170,7 +170,7 @@ impl CpuTemplate for Cpu {
                             self.branch_success = false;
                         }
 
-                        if !self.current_instruction.is_rmw() {
+                        if !instruction.is_rmw() {
                             if self.page_crossing {
                                 self.instruction_cycle_count += 1;
                             }
