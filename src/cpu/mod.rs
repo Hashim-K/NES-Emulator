@@ -4,6 +4,7 @@ use crate::memory::Memory;
 use crate::MainError;
 use debug::DebugMode;
 use interrupt_handler::InterruptState;
+use log::warn;
 use registers::{CpuRegister, ProgramCounter, StatusRegister, StatusRegisterBit};
 use tudelft_nes_ppu::{Cpu as CpuTemplate, Ppu};
 use tudelft_nes_test::TestableCpu;
@@ -50,7 +51,7 @@ impl TestableCpu for Cpu {
     type GetCpuError = MyGetCpuError;
 
     fn get_cpu(_rom: &[u8]) -> Result<Self, MyGetCpuError> {
-        let debug: DebugMode = DebugMode::EmuDebug;
+        let debug: DebugMode = DebugMode::InfoDebug;
         Ok(Cpu {
             accumulator: CpuRegister::default(),
             x_register: CpuRegister::default(),
@@ -94,6 +95,12 @@ impl TestableCpu for Cpu {
 /// See docs of `Cpu` for explanations of each function
 impl CpuTemplate for Cpu {
     type TickError = MyTickError;
+
+    fn ppu_memory_write(&mut self, _address: u16, _value: u8) {
+        if let Err(x) = self.memory.write_ppu_byte(_address, _value){
+            warn!("Ppu write error: {}", x);
+        }
+    }
 
     fn tick(&mut self, ppu: &mut Ppu) -> Result<(), MyTickError> {
         // set the cpu to the startup state fi
