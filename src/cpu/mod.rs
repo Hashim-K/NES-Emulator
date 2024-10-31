@@ -4,6 +4,7 @@ use crate::memory::Memory;
 use crate::MainError;
 use debug::DebugMode;
 use interrupt_handler::InterruptState;
+use log::warn;
 use registers::{CpuRegister, ProgramCounter, StatusRegister, StatusRegisterBit};
 use tudelft_nes_ppu::{Cpu as CpuTemplate, Ppu};
 use tudelft_nes_test::TestableCpu;
@@ -95,6 +96,12 @@ impl TestableCpu for Cpu {
 impl CpuTemplate for Cpu {
     type TickError = MyTickError;
 
+    fn ppu_memory_write(&mut self, _address: u16, _value: u8) {
+        if let Err(x) = self.memory.write_ppu_byte(_address, _value) {
+            warn!("Ppu write error: {}", x);
+        }
+    }
+
     fn tick(&mut self, ppu: &mut Ppu) -> Result<(), MyTickError> {
         // set the cpu to the startup state fi
         if !self.initialized {
@@ -154,11 +161,6 @@ impl CpuTemplate for Cpu {
                             self.instruction_cycle_count,
                         ));
 
-                        if self.page_crossing {
-                            self.instruction_cycle_count += 1;
-                            self.page_crossing = false;
-                        }
-
                         // make sure the interrupts are polled before the second cycle of the conditional branch operations
                         // it could still be wrong, i dont understand this part on nesdev
                         self.interrupt_polling_cycle = self.instruction_cycle_count;
@@ -169,8 +171,13 @@ impl CpuTemplate for Cpu {
                         }
 
                         if !self.current_instruction.is_rmw() {
-                            self.instruction_cycle_count -= 1;
+                            if self.page_crossing {
+                                self.instruction_cycle_count += 1;
+                            }
+                            // add the rmw timing here
                         }
+
+                        self.page_crossing = false;
                         self.current_instruction = instruction;
                         self.instructions_executed += 1;
                         self.print_cpu_state_header();
@@ -253,16 +260,16 @@ impl Cpu {
             let ppu_dots = self.total_cycles * 3 % ppu_dots_per_scanline;
 
             self.debug.emu_log(format!(
-                "{:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{:-3}",
+                "${:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} SP:{:02X} P:{} CYC:{}",
                 self.program_counter.get(),
                 bytes,
                 instruction.instruction_type,
                 self.accumulator.get(),
                 self.x_register.get(),
                 self.y_register.get(),
-                self.status_register.get(),
                 self.stack_pointer.get(),
-                ppu_dots,
+                self.status_register.print(),
+                self.total_cycles,
             ));
         }
     }
@@ -331,26 +338,26 @@ impl Cpu {
             // abs,X	    absolute, X-indexed	    OPC $LLHH,X	    operand is address; effective address is address incremented by X with carry **
             AddressingMode::AbsoluteX => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
+                let new_address = address.wrapping_add(self.x_register.get() as u16);
+                if ((new_address & 0x0100) ^ (address & 0x0100)) == 0x0100 {
+                    self.page_crossing = true;
+                }
                 Ok(OperandValue {
                     address: Some(address + self.x_register.get() as u16),
-                    value: Some(self.memory.read(
-                        address + self.x_register.get() as u16,
-                        self,
-                        ppu,
-                    )?),
+                    value: Some(self.memory.read(new_address, self, ppu)?),
                 })
             }
 
             // abs,Y	    absolute, Y-indexed	    OPC $LLHH,Y	    operand is address; effective address is address incremented by Y with carry **
             AddressingMode::AbsoluteY => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
+                let new_address = address.wrapping_add(self.x_register.get() as u16);
+                if ((new_address & 0x0100) ^ (address & 0x0100)) == 0x0100 {
+                    self.page_crossing = true;
+                }
                 Ok(OperandValue {
                     address: Some(address + self.y_register.get() as u16),
-                    value: Some(self.memory.read(
-                        address + self.y_register.get() as u16,
-                        self,
-                        ppu,
-                    )?),
+                    value: Some(self.memory.read(new_address, self, ppu)?),
                 })
             }
 
@@ -380,7 +387,7 @@ impl Cpu {
 
             // X,ind	    X-indexed, indirect	    OPC ($LL,X)	    operand is zeropage address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)
             AddressingMode::IndirectX => {
-                let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
+                let address: u16 = ll.wrapping_add(self.x_register.get()) as u16;
                 let memory_ll: u8 = self.memory.read(address, self, ppu)?;
                 let memory_hh: u8 = self.memory.read(address + 1, self, ppu)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
@@ -518,7 +525,7 @@ impl Cpu {
         self.program_counter.set_lobyte(lobyte);
         self.program_counter.set_hibyte(hibyte);
         // self.debug.info_log(format!("program counter set to {}", self.program_counter.get()));
-        self.stack_pointer.set(0xFF);
+        self.stack_pointer.set(0xFD);
         self.status_register
             .set_bit(StatusRegisterBit::Interrupt, true);
 

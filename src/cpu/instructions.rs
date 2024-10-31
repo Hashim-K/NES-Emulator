@@ -1251,7 +1251,7 @@ impl Instruction {
 
             InstructionType::LSR => {
                 let operator_value = operand_value.value.expect("Operand value for LSR is None");
-                let result = operator_value << 1;
+                let result = operator_value >> 1;
                 cpu.status_register
                     .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 7) != 0);
                 Self::set_status_if_zero(result, cpu);
@@ -1556,6 +1556,8 @@ impl Instruction {
 
     // Return true if instruction is Read-Modify-Write
     pub fn is_rmw(&self) -> bool {
+        // ADC, AND, CMP, EOR, LDA, LDX, LDY, ORA, SBC have extra cycle on page crossing
+        // STA, ROR, ROL, LSR, INC, DEC, ASL have no extra cycle on page crossing
         matches!(
             self.instruction_type,
             InstructionType::ASL
@@ -1564,6 +1566,7 @@ impl Instruction {
                 | InstructionType::LSR
                 | InstructionType::ROL
                 | InstructionType::ROR
+                | InstructionType::STA
         )
     }
 
