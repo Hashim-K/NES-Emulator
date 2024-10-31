@@ -1138,7 +1138,7 @@ impl Instruction {
                 let carry = u8::from(cpu.status_register.get_carry());
                 let result = acc.wrapping_add(op_value).wrapping_add(carry);
                 let did_carry =
-                    result < acc || (acc == 0 && carry == 1) || (op_value == 0xff && carry == 1);
+                    result < acc || (result == 0 && carry == 1) || (op_value == 0xff && carry == 1);
                 let did_overflow = (acc > 127 && op_value > 127 && result < 128)
                     || (acc < 128 && op_value < 128 && result > 127);
                 cpu.accumulator.set(result);
