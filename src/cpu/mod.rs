@@ -452,7 +452,7 @@ impl Cpu {
 
             // zpg,X	    zeropage, X-indexed	    OPC $LL,X	    operand is zeropage address; effective address is address incremented by X without carry **
             AddressingMode::ZeroPageX => {
-                let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
+                let address: u16 = ll.wrapping_add(self.x_register.get()) as u16;
                 Ok(OperandValue {
                     address: Some(address),
                     value: Some(self.memory.read(address, self, ppu)?),
@@ -461,7 +461,7 @@ impl Cpu {
 
             // zpg,Y	    zeropage, Y-indexed	    OPC $LL,Y	    operand is zeropage address; effective address is address incremented by Y without carry **
             AddressingMode::ZeroPageY => {
-                let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
+                let address: u16 = ll.wrapping_add(self.y_register.get()) as u16;
                 Ok(OperandValue {
                     address: Some(address),
                     value: Some(self.memory.read(address, self, ppu)?),
