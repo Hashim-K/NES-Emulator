@@ -103,6 +103,7 @@ impl Memory {
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {
+                self.debug.info_log(format!("register written to value: {}", value));
                 let _register = address_to_ppu_register(address);
                 if _register == PpuRegister::Address {
                     self.ppuaddress = value as u32;
@@ -311,12 +312,13 @@ impl Cartridge {
             1 => {
                 if (value & 0b10000000) == 128 {
                     match address {
-                        ..0x8000 => {}
-                        0x8000.. => {
-                            self.header.mirroring = Mirroring::SingleScreenLower;
-                            self.prg_bank_mode = ProgramBankMode::Fixlast;
-                            self.chr_bank_mode = CharacterBankMode::Fullswitch;
+
+                        0x8000.. =>{
+                        self.header.mirroring = Mirroring::SingleScreenLower;
+                        self.prg_bank_mode = ProgramBankMode::Fixlast;
+                        self.chr_bank_mode = CharacterBankMode::Fullswitch;
                         }
+                        _ => return Ok(()),
                     }
                 } else {
                     if (self.shift_register & 1) != 1 {
