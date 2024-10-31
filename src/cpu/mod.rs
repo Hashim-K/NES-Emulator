@@ -260,15 +260,15 @@ impl Cpu {
             let ppu_dots = self.total_cycles * 3 % ppu_dots_per_scanline;
 
             self.debug.emu_log(format!(
-                "${:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} SP:{:02X} P:{} CYC:{}",
+                "{:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{}",
                 self.program_counter.get(),
                 bytes,
                 instruction.instruction_type,
                 self.accumulator.get(),
                 self.x_register.get(),
                 self.y_register.get(),
+                self.status_register.get(),
                 self.stack_pointer.get(),
-                self.status_register.print(),
                 self.total_cycles,
             ));
         }
