@@ -388,8 +388,10 @@ impl Cpu {
             // X,ind	    X-indexed, indirect	    OPC ($LL,X)	    operand is zeropage address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)
             AddressingMode::IndirectX => {
                 let address: u16 = ll.wrapping_add(self.x_register.get()) as u16;
+                let address_plus_one =
+                    ll.wrapping_add(self.x_register.get()).wrapping_add(1) as u16;
                 let memory_ll: u8 = self.memory.read(address, self, ppu)?;
-                let memory_hh: u8 = self.memory.read(address + 1, self, ppu)?;
+                let memory_hh: u8 = self.memory.read(address_plus_one, self, ppu)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
                 Ok(OperandValue {
                     address: Some(memory_address),
