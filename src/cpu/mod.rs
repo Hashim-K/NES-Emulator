@@ -169,7 +169,7 @@ impl CpuTemplate for Cpu {
                         }
 
                         if !self.current_instruction.is_rmw() {
-                            self.instruction_cycle_count -= 1;
+                            self.instruction_cycle_count -= 0;
                         }
                         self.current_instruction = instruction;
                         self.instructions_executed += 1;
@@ -253,7 +253,7 @@ impl Cpu {
             let ppu_dots = self.total_cycles * 3 % ppu_dots_per_scanline;
 
             self.debug.emu_log(format!(
-                "{:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} SP:{:02X} P:{} CYC:{}",
+                "${:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} SP:{:02X} P:{} CYC:{}",
                 self.program_counter.get(),
                 bytes,
                 instruction.instruction_type,
