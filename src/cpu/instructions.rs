@@ -1475,7 +1475,7 @@ impl Instruction {
                 cpu.stack_pointer.decrement();
                 cpu.memory.write(
                     cpu.stack_pointer.get() as u16 + 0x0100,
-                    cpu.program_counter.get_lobyte(),
+                    cpu.program_counter.get_lobyte().wrapping_sub(1),
                     ppu,
                 )?;
                 cpu.stack_pointer.decrement();
@@ -1489,7 +1489,7 @@ impl Instruction {
                 let lobyte = cpu
                     .memory
                     .read(cpu.stack_pointer.get() as u16 + 0x0100, cpu, ppu)?;
-                cpu.program_counter.set_lobyte(lobyte);
+                cpu.program_counter.set_lobyte(lobyte.wrapping_add(1));
 
                 cpu.stack_pointer.increment();
                 let hibyte = cpu
