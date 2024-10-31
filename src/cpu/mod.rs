@@ -267,7 +267,7 @@ impl Cpu {
                 self.accumulator.get(),
                 self.x_register.get(),
                 self.y_register.get(),
-                self.status_register.get(),
+                self.status_register.get() & !(1 << 4),
                 self.stack_pointer.get(),
                 self.total_cycles,
             ));
