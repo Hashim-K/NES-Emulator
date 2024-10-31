@@ -811,7 +811,13 @@ impl Instruction {
             }),
 
             //UNKNOWN INSTRUCTION
-            _ => panic!("Unknown opcode: {:#X}", opcode),
+            _ => {
+                eprintln!("Unknown opcode: {:#X}", opcode);
+                Ok(Instruction {
+                    instruction_type: InstructionType::NOP,
+                    addressing_mode: AddressingMode::Implied,
+                })
+            }
         }
     }
 
