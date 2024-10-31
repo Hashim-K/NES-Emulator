@@ -376,8 +376,9 @@ impl Cpu {
             // ind	        indirect	            OPC ($LLHH)	    operand is address; effective address is contents of word at address: C.w($HHLL)
             AddressingMode::Indirect => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
+                let address_plus_one = (hh as u16) << 8 | ll.wrapping_add(1) as u16;
                 let memory_ll: u8 = self.memory.read(address, self, ppu)?;
-                let memory_hh: u8 = self.memory.read(address + 1, self, ppu)?;
+                let memory_hh: u8 = self.memory.read(address_plus_one, self, ppu)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
                 Ok(OperandValue {
                     address: Some(memory_address),
