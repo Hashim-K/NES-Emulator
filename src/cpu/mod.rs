@@ -343,7 +343,7 @@ impl Cpu {
                     self.page_crossing = true;
                 }
                 Ok(OperandValue {
-                    address: Some(address + self.x_register.get() as u16),
+                    address: Some(new_address),
                     value: Some(self.memory.read(new_address, self, ppu)?),
                 })
             }
@@ -351,12 +351,12 @@ impl Cpu {
             // abs,Y	    absolute, Y-indexed	    OPC $LLHH,Y	    operand is address; effective address is address incremented by Y with carry **
             AddressingMode::AbsoluteY => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
-                let new_address = address.wrapping_add(self.x_register.get() as u16);
+                let new_address = address.wrapping_add(self.y_register.get() as u16);
                 if ((new_address & 0x0100) ^ (address & 0x0100)) == 0x0100 {
                     self.page_crossing = true;
                 }
                 Ok(OperandValue {
-                    address: Some(address + self.y_register.get() as u16),
+                    address: Some(new_address),
                     value: Some(self.memory.read(new_address, self, ppu)?),
                 })
             }
