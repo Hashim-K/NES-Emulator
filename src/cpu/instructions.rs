@@ -51,15 +51,14 @@ impl AddressingMode {
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum InstructionType {
-
-    // ooooo        oooooooooooo   .oooooo.          .o.       ooooo        
-    // `888'        `888'     `8  d8P'  `Y8b        .888.      `888'        
-    //  888          888         888               .8"888.      888         
-    //  888          888oooo8    888              .8' `888.     888         
-    //  888          888    "    888     ooooo   .88ooo8888.    888         
-    //  888       o  888       o `88.    .88'   .8'     `888.   888       o 
+    // ooooo        oooooooooooo   .oooooo.          .o.       ooooo
+    // `888'        `888'     `8  d8P'  `Y8b        .888.      `888'
+    //  888          888         888               .8"888.      888
+    //  888          888oooo8    888              .8' `888.     888
+    //  888          888    "    888     ooooo   .88ooo8888.    888
+    //  888       o  888       o `88.    .88'   .8'     `888.   888       o
     // o888ooooood8 o888ooooood8  `Y8bood8P'   o88o     o8888o o888ooooood8
-                                                                                         
+
     //Transfer Instructions
     LDA, // Load Accumulator
     LDX, // Load X Register
@@ -139,36 +138,35 @@ pub enum InstructionType {
     //Miscellaneous Instructions
     BIT, // Bit Test
     NOP, // No Operation
-    
-    // ooooo ooooo        ooooo        oooooooooooo   .oooooo.          .o.       ooooo        
-    // `888' `888'        `888'        `888'     `8  d8P'  `Y8b        .888.      `888'        
-    //  888   888          888          888         888               .8"888.      888         
-    //  888   888          888          888oooo8    888              .8' `888.     888         
-    //  888   888          888          888    "    888     ooooo   .88ooo8888.    888         
-    //  888   888       o  888       o  888       o `88.    .88'   .8'     `888.   888       o 
-    // o888o o888ooooood8 o888ooooood8 o888ooooood8  `Y8bood8P'   o88o     o8888o o888ooooood8 
 
-    ALR, // A AND operand, 0 -> [76543210] -> C
-    ANC, // A AND operand, bit(7) -> C
-    ANE, // (A OR CONST) AND X AND operand -> A
-    ARR, // A AND operand, C -> [76543210] -> C
-    DCP, // Decrements the operand and then compares the result to the accumulator.
-    ISC, // INC oper + SBC operand
-    LAS, // M -> A, & SP -> X
-    LAX, // M -> A -> X
-    LXA, // (A OR CONST) AND oper -> A -> X
-    RLA, // M = C <- [76543210] <- C, A AND M -> A
-    RRA, // M = C -> [76543210] -> C, A + M + C -> A, C
-    SAX, // A AND X -> M
-    SBX, // (A AND X) - oper -> X
-    SHA, // A AND X AND (H+1) -> M
-    SHX, // X AND (HH+1) -> M
-    SHY, // Y AND (HH+1) -> M
-    SLO, // M = C <- [76543210] <- 0, A OR M -> A
-    SRE, // M = 0 -> [76543210] -> C, A EOR M -> A
-    TAS, // A AND X -> SP, A AND X AND (H+1) -> M
+    // ooooo ooooo        ooooo        oooooooooooo   .oooooo.          .o.       ooooo
+    // `888' `888'        `888'        `888'     `8  d8P'  `Y8b        .888.      `888'
+    //  888   888          888          888         888               .8"888.      888
+    //  888   888          888          888oooo8    888              .8' `888.     888
+    //  888   888          888          888    "    888     ooooo   .88ooo8888.    888
+    //  888   888       o  888       o  888       o `88.    .88'   .8'     `888.   888       o
+    // o888o o888ooooood8 o888ooooood8 o888ooooood8  `Y8bood8P'   o88o     o8888o o888ooooood8
+    ALR,  // A AND operand, 0 -> [76543210] -> C
+    ANC,  // A AND operand, bit(7) -> C
+    ANE,  // (A OR CONST) AND X AND operand -> A
+    ARR,  // A AND operand, C -> [76543210] -> C
+    DCP,  // Decrements the operand and then compares the result to the accumulator.
+    ISC,  // INC oper + SBC operand
+    LAS,  // M -> A, & SP -> X
+    LAX,  // M -> A -> X
+    LXA,  // (A OR CONST) AND oper -> A -> X
+    RLA,  // M = C <- [76543210] <- C, A AND M -> A
+    RRA,  // M = C -> [76543210] -> C, A + M + C -> A, C
+    SAX,  // A AND X -> M
+    SBX,  // (A AND X) - oper -> X
+    SHA,  // A AND X AND (H+1) -> M
+    SHX,  // X AND (HH+1) -> M
+    SHY,  // Y AND (HH+1) -> M
+    SLO,  // M = C <- [76543210] <- 0, A OR M -> A
+    SRE,  // M = 0 -> [76543210] -> C, A EOR M -> A
+    TAS,  // A AND X -> SP, A AND X AND (H+1) -> M
     USBC, // A - M - C̅ -> A
-    JAM // These instructions freeze the CPU.
+    JAM,  // These instructions freeze the CPU.
 }
 
 impl Instruction {
@@ -1485,22 +1483,49 @@ impl Instruction {
                     AddressingMode::ZeroPageY => Ok(6),
                     _ => Err(MainError::OpcodeError),
                 },
-                0b11 => match instruction.addressing_mode {
-                    // AddressingMode::Accumulator => ,
-                    // AddressingMode::Absolute => ,
-                    // AddressingMode::AbsoluteX => ,
-                    // AddressingMode::AbsoluteY => ,
-                    // AddressingMode::Immediate => ,
-                    // AddressingMode::Implied => ,
-                    // AddressingMode::Indirect => ,
-                    // AddressingMode::IndirectX => ,
-                    // AddressingMode::IndirectY => ,
-                    // AddressingMode::Relative => ,
-                    // AddressingMode::ZeroPage => ,
-                    // AddressingMode::ZeroPageX => ,
-                    // AddressingMode::ZeroPageY => ,
-                    _ => Err(MainError::OpcodeError),
-                },
+                0b11 => {
+                    if instruction.instruction_type == InstructionType::DCP
+                        || instruction.instruction_type == InstructionType::ISC
+                        || instruction.instruction_type == InstructionType::SLO
+                        || instruction.instruction_type == InstructionType::RLA
+                        || instruction.instruction_type == InstructionType::SRE
+                        || instruction.instruction_type == InstructionType::RRA
+                    {
+                        match instruction.addressing_mode {
+                            // AddressingMode::Accumulator => ,
+                            AddressingMode::Absolute => Ok(6),
+                            AddressingMode::AbsoluteX => Ok(7),
+                            AddressingMode::AbsoluteY => Ok(7),
+                            // AddressingMode::Immediate => Ok(2),
+                            // AddressingMode::Implied => ,
+                            // AddressingMode::Indirect => ,
+                            AddressingMode::IndirectX => Ok(8),
+                            AddressingMode::IndirectY => Ok(8),
+                            // AddressingMode::Relative => ,
+                            AddressingMode::ZeroPage => Ok(5),
+                            AddressingMode::ZeroPageX => Ok(6),
+                            // AddressingMode::ZeroPageY => Ok(4),
+                            _ => todo!(),
+                        }
+                    } else {
+                        match instruction.addressing_mode {
+                            // AddressingMode::Accumulator => ,
+                            AddressingMode::Absolute => Ok(4),
+                            AddressingMode::AbsoluteX => Ok(7),
+                            AddressingMode::AbsoluteY => Ok(4),
+                            AddressingMode::Immediate => Ok(2),
+                            // AddressingMode::Implied => ,
+                            // AddressingMode::Indirect => ,
+                            AddressingMode::IndirectX => Ok(6),
+                            AddressingMode::IndirectY => Ok(5),
+                            // AddressingMode::Relative => ,
+                            AddressingMode::ZeroPage => Ok(3),
+                            AddressingMode::ZeroPageX => Ok(6),
+                            AddressingMode::ZeroPageY => Ok(4),
+                            _ => todo!(),
+                        }
+                    }
+                }
                 _ => Err(MainError::OpcodeError),
             },
         }
@@ -1550,6 +1575,15 @@ impl Instruction {
                 Ok(())
             }
 
+            InstructionType::LAX => {
+                let value = operand_value.value.expect("LDA operand value is None");
+                cpu.accumulator.set(value);
+                cpu.x_register.set(value);
+                Self::set_status_if_zero(value, cpu);
+                Self::set_status_if_negative(value, cpu);
+                Ok(())
+            }
+
             InstructionType::STA => {
                 let address: u16 = operand_value.address.expect("STA Address is None");
                 cpu.memory.write(address, cpu.accumulator.get(), ppu)?;
@@ -1564,6 +1598,13 @@ impl Instruction {
             InstructionType::STY => {
                 let address: u16 = operand_value.address.expect("STY Address is None");
                 cpu.memory.write(address, cpu.y_register.get(), ppu)?;
+                Ok(())
+            }
+
+            InstructionType::SAX => {
+                let address: u16 = operand_value.address.expect("SAX Address is None");
+                cpu.memory
+                    .write(address, cpu.x_register.get() & cpu.accumulator.get(), ppu)?;
                 Ok(())
             }
 
@@ -1689,9 +1730,39 @@ impl Instruction {
                 Ok(())
             }
 
-            InstructionType::ADC => {
+            InstructionType::DCP => {
+                let address = operand_value.address.expect("DCP Address is None");
+                let value = operand_value.value.expect("DCP value is None");
+                let new_value = value.wrapping_sub(1);
+                cpu.memory.write(address, new_value, ppu)?;
+
+                let reg = cpu.accumulator.get();
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::Carry, reg >= new_value);
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::Zero, reg == new_value);
+                Self::set_status_if_negative(reg.wrapping_sub(new_value), cpu);
+                Ok(())
+            }
+
+            InstructionType::ADC | InstructionType::RRA => {
                 let acc = cpu.accumulator.get();
-                let op_value = operand_value.value.expect("Operand value for ADC is None");
+                let mut op_value = operand_value.value.expect("Operand value for ADC is None");
+
+                if self.instruction_type == InstructionType::RRA {
+                    let operator_value =
+                        operand_value.value.expect("Operand value for RRA is None");
+                    let address = operand_value.address.expect("Address for RRA is None");
+                    let carry = u8::from(cpu.status_register.get_carry());
+                    let result = operator_value >> 1 | carry << 7;
+                    cpu.status_register
+                        .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 0) != 0);
+                    Self::set_status_if_zero(result, cpu);
+                    Self::set_status_if_negative(result, cpu);
+                    cpu.memory.write(address, result, ppu)?;
+                    op_value = result;
+                }
+
                 let carry = u8::from(cpu.status_register.get_carry());
                 let result = acc.wrapping_add(op_value).wrapping_add(carry);
                 let did_carry =
@@ -1711,9 +1782,14 @@ impl Instruction {
             }
 
             // TODO implement decimal mode and carry
-            InstructionType::SBC => {
+            InstructionType::SBC | InstructionType::USBC | InstructionType::ISC => {
                 let acc = cpu.accumulator.get();
-                let op_value = operand_value.value.expect("Operand value for SBC is None");
+                let mut op_value = operand_value.value.expect("Operand value for SBC is None");
+                if self.instruction_type == InstructionType::ISC {
+                    let address = operand_value.address.expect("ISC Address is None");
+                    op_value = op_value.wrapping_add(1);
+                    cpu.memory.write(address, op_value, ppu)?;
+                }
                 let carry = u8::from(cpu.status_register.get_carry());
                 let result = acc.wrapping_sub(op_value).wrapping_sub(1 - carry);
                 let did_carry = result <= acc;
@@ -1790,6 +1866,20 @@ impl Instruction {
                 Ok(())
             }
 
+            InstructionType::SLO => {
+                let operator_value = operand_value.value.expect("Operand value for SLO is None");
+                let address = operand_value.address.expect("Address for SLO is None");
+                let result = operator_value << 1;
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 7) != 0);
+                Self::set_status_if_zero(result, cpu);
+
+                cpu.memory.write(address, result, ppu)?;
+                cpu.accumulator.set(cpu.accumulator.get() | result);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
+                Ok(())
+            }
+
             InstructionType::ASL => {
                 let operator_value = operand_value.value.expect("Operand value for ASL is None");
                 let result = operator_value << 1;
@@ -1819,6 +1909,23 @@ impl Instruction {
                 } else {
                     cpu.accumulator.set(result)
                 }
+                Ok(())
+            }
+
+            InstructionType::SRE => {
+                let operator_value = operand_value.value.expect("Operand value for SRE is None");
+                let address = operand_value.address.expect("Address for SRE is None");
+                let result = operator_value >> 1;
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::Carry, operator_value & 1 != 0);
+                Self::set_status_if_zero(result, cpu);
+                Self::set_status_if_negative(result, cpu);
+                cpu.memory.write(address, result, ppu)?;
+
+                let value = cpu.accumulator.get() ^ result;
+                cpu.accumulator.set(value);
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
                 Ok(())
             }
 
@@ -1853,6 +1960,25 @@ impl Instruction {
                 } else {
                     cpu.accumulator.set(result)
                 }
+                Ok(())
+            }
+
+            InstructionType::RLA => {
+                let operator_value = operand_value.value.expect("Operand value for RLA is None");
+                let address = operand_value.address.expect("Address for RLA is None");
+                let carry = u8::from(cpu.status_register.get_carry());
+                let result = operator_value << 1 | carry;
+                cpu.status_register
+                    .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 7) != 0);
+                Self::set_status_if_zero(result, cpu);
+                Self::set_status_if_negative(result, cpu);
+
+                cpu.memory.write(address, result, ppu)?;
+
+                let value = cpu.accumulator.get() & result;
+                cpu.accumulator.set(value);
+                Self::set_status_if_zero(cpu.accumulator.get(), cpu);
+                Self::set_status_if_negative(cpu.accumulator.get(), cpu);
                 Ok(())
             }
 
@@ -2108,6 +2234,8 @@ impl Instruction {
             }
 
             InstructionType::NOP => Ok(()),
+
+            _ => todo!(),
         }
     }
 
@@ -2124,6 +2252,12 @@ impl Instruction {
                 | InstructionType::ROL
                 | InstructionType::ROR
                 | InstructionType::STA
+                | InstructionType::DCP
+                | InstructionType::ISC
+                | InstructionType::SLO
+                | InstructionType::RLA
+                | InstructionType::SRE
+                | InstructionType::RRA
         )
     }
 
