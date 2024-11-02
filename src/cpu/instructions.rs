@@ -811,7 +811,13 @@ impl Instruction {
             }),
 
             //UNKNOWN INSTRUCTION
-            _ => panic!("Unknown opcode: {:#X}", opcode),
+            _ => {
+                eprintln!("Unknown opcode: {:#X}", opcode);
+                Ok(Instruction {
+                    instruction_type: InstructionType::NOP,
+                    addressing_mode: AddressingMode::Implied,
+                })
+            }
         }
     }
 
@@ -1138,7 +1144,7 @@ impl Instruction {
                 let carry = u8::from(cpu.status_register.get_carry());
                 let result = acc.wrapping_add(op_value).wrapping_add(carry);
                 let did_carry =
-                    result < acc || (acc == 0 && carry == 1) || (result == 0xff && carry == 1);
+                    result < acc || (result == 0 && carry == 1) || (op_value == 0xff && carry == 1);
                 let did_overflow = (acc > 127 && op_value > 127 && result < 128)
                     || (acc < 128 && op_value < 128 && result > 127);
                 cpu.accumulator.set(result);
@@ -1159,7 +1165,7 @@ impl Instruction {
                 let op_value = operand_value.value.expect("Operand value for SBC is None");
                 let carry = u8::from(cpu.status_register.get_carry());
                 let result = acc.wrapping_sub(op_value).wrapping_sub(1 - carry);
-                let did_carry = (acc ^ op_value) & (acc ^ result) & 0x80 != 0;
+                let did_carry = (result <= acc) & (op_value != 0 || carry == 1);
 
                 // Check if sign is wrong. This happens in the following cases:
                 // positive - negative results in negative
@@ -1253,7 +1259,7 @@ impl Instruction {
                 let operator_value = operand_value.value.expect("Operand value for LSR is None");
                 let result = operator_value >> 1;
                 cpu.status_register
-                    .set_bit(StatusRegisterBit::Carry, operator_value & (1 << 7) != 0);
+                    .set_bit(StatusRegisterBit::Carry, operator_value & 1 != 0);
                 Self::set_status_if_zero(result, cpu);
                 Self::set_status_if_negative(result, cpu);
 
@@ -1475,7 +1481,7 @@ impl Instruction {
                 cpu.stack_pointer.decrement();
                 cpu.memory.write(
                     cpu.stack_pointer.get() as u16 + 0x0100,
-                    cpu.program_counter.get_lobyte(),
+                    cpu.program_counter.get_lobyte().wrapping_sub(1),
                     ppu,
                 )?;
                 cpu.stack_pointer.decrement();
@@ -1489,7 +1495,7 @@ impl Instruction {
                 let lobyte = cpu
                     .memory
                     .read(cpu.stack_pointer.get() as u16 + 0x0100, cpu, ppu)?;
-                cpu.program_counter.set_lobyte(lobyte);
+                cpu.program_counter.set_lobyte(lobyte.wrapping_add(1));
 
                 cpu.stack_pointer.increment();
                 let hibyte = cpu

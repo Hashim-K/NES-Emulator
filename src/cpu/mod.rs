@@ -51,7 +51,7 @@ impl TestableCpu for Cpu {
     type GetCpuError = MyGetCpuError;
 
     fn get_cpu(_rom: &[u8]) -> Result<Self, MyGetCpuError> {
-        let debug: DebugMode = DebugMode::InfoDebug;
+        let debug: DebugMode = DebugMode::EmuDebug;
         Ok(Cpu {
             accumulator: CpuRegister::default(),
             x_register: CpuRegister::default(),
@@ -170,7 +170,7 @@ impl CpuTemplate for Cpu {
                             self.branch_success = false;
                         }
 
-                        if !self.current_instruction.is_rmw() {
+                        if !instruction.is_rmw() {
                             if self.page_crossing {
                                 self.instruction_cycle_count += 1;
                             }
@@ -260,15 +260,15 @@ impl Cpu {
             let ppu_dots = self.total_cycles * 3 % ppu_dots_per_scanline;
 
             self.debug.emu_log(format!(
-                "${:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} SP:{:02X} P:{} CYC:{}",
+                "{:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{}",
                 self.program_counter.get(),
                 bytes,
                 instruction.instruction_type,
                 self.accumulator.get(),
                 self.x_register.get(),
                 self.y_register.get(),
+                self.status_register.get() & !(1 << 4),
                 self.stack_pointer.get(),
-                self.status_register.print(),
                 self.total_cycles,
             ));
         }
@@ -343,7 +343,7 @@ impl Cpu {
                     self.page_crossing = true;
                 }
                 Ok(OperandValue {
-                    address: Some(address + self.x_register.get() as u16),
+                    address: Some(new_address),
                     value: Some(self.memory.read(new_address, self, ppu)?),
                 })
             }
@@ -351,12 +351,12 @@ impl Cpu {
             // abs,Y	    absolute, Y-indexed	    OPC $LLHH,Y	    operand is address; effective address is address incremented by Y with carry **
             AddressingMode::AbsoluteY => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
-                let new_address = address.wrapping_add(self.x_register.get() as u16);
+                let new_address = address.wrapping_add(self.y_register.get() as u16);
                 if ((new_address & 0x0100) ^ (address & 0x0100)) == 0x0100 {
                     self.page_crossing = true;
                 }
                 Ok(OperandValue {
-                    address: Some(address + self.y_register.get() as u16),
+                    address: Some(new_address),
                     value: Some(self.memory.read(new_address, self, ppu)?),
                 })
             }
@@ -376,8 +376,9 @@ impl Cpu {
             // ind	        indirect	            OPC ($LLHH)	    operand is address; effective address is contents of word at address: C.w($HHLL)
             AddressingMode::Indirect => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
+                let address_plus_one = (hh as u16) << 8 | ll.wrapping_add(1) as u16;
                 let memory_ll: u8 = self.memory.read(address, self, ppu)?;
-                let memory_hh: u8 = self.memory.read(address + 1, self, ppu)?;
+                let memory_hh: u8 = self.memory.read(address_plus_one, self, ppu)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
                 Ok(OperandValue {
                     address: Some(memory_address),
@@ -388,8 +389,10 @@ impl Cpu {
             // X,ind	    X-indexed, indirect	    OPC ($LL,X)	    operand is zeropage address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)
             AddressingMode::IndirectX => {
                 let address: u16 = ll.wrapping_add(self.x_register.get()) as u16;
+                let address_plus_one =
+                    ll.wrapping_add(self.x_register.get()).wrapping_add(1) as u16;
                 let memory_ll: u8 = self.memory.read(address, self, ppu)?;
-                let memory_hh: u8 = self.memory.read(address + 1, self, ppu)?;
+                let memory_hh: u8 = self.memory.read(address_plus_one, self, ppu)?;
                 let memory_address: u16 = (memory_hh as u16) << 8 | memory_ll as u16;
                 Ok(OperandValue {
                     address: Some(memory_address),
@@ -400,13 +403,18 @@ impl Cpu {
             // ind,Y	    indirect, Y-indexed	    OPC ($LL),Y	    operand is zeropage address; effective address is word in (LL, LL + 1) incremented by Y with carry: C.w($00LL) + Y
             AddressingMode::IndirectY => {
                 let address: u16 = ll as u16;
+                let address_plus_one = ll.wrapping_add(1) as u16;
                 let memory_ll: u8 = self.memory.read(address, self, ppu)?;
-                let memory_hh: u8 = self.memory.read(address + 1, self, ppu)?;
-                let memory_address: u16 = ((memory_hh as u16) << 8 | memory_ll as u16)
-                    .wrapping_add(self.y_register.get().into());
+                let memory_hh: u8 = self.memory.read(address_plus_one, self, ppu)?;
+                let address_non_incremented = (memory_hh as u16) << 8 | memory_ll as u16;
+                let address_incremented: u16 =
+                    address_non_incremented.wrapping_add(self.y_register.get().into());
+                if ((address_incremented & 0x0100) ^ (address_non_incremented & 0x0100)) == 0x0100 {
+                    self.page_crossing = true;
+                }
                 Ok(OperandValue {
-                    address: Some(memory_address),
-                    value: Some(self.memory.read(memory_address, self, ppu)?),
+                    address: Some(address_incremented),
+                    value: Some(self.memory.read(address_incremented, self, ppu)?),
                 })
             }
 
@@ -444,7 +452,7 @@ impl Cpu {
 
             // zpg,X	    zeropage, X-indexed	    OPC $LL,X	    operand is zeropage address; effective address is address incremented by X without carry **
             AddressingMode::ZeroPageX => {
-                let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
+                let address: u16 = ll.wrapping_add(self.x_register.get()) as u16;
                 Ok(OperandValue {
                     address: Some(address),
                     value: Some(self.memory.read(address, self, ppu)?),
@@ -453,7 +461,7 @@ impl Cpu {
 
             // zpg,Y	    zeropage, Y-indexed	    OPC $LL,Y	    operand is zeropage address; effective address is address incremented by Y without carry **
             AddressingMode::ZeroPageY => {
-                let address: u16 = ll.saturating_add(self.x_register.get()) as u16;
+                let address: u16 = ll.wrapping_add(self.y_register.get()) as u16;
                 Ok(OperandValue {
                     address: Some(address),
                     value: Some(self.memory.read(address, self, ppu)?),
