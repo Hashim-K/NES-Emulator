@@ -1165,7 +1165,7 @@ impl Instruction {
                 let op_value = operand_value.value.expect("Operand value for SBC is None");
                 let carry = u8::from(cpu.status_register.get_carry());
                 let result = acc.wrapping_sub(op_value).wrapping_sub(1 - carry);
-                let did_carry = result <= acc;
+                let did_carry = (result <= acc) & (op_value!=0 || carry == 1);
 
                 // Check if sign is wrong. This happens in the following cases:
                 // positive - negative results in negative
