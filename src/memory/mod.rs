@@ -152,7 +152,7 @@ impl Memory {
                 address
             ));
         }
-        return value;
+        value
     }
 
     pub fn read_cpu_mem(&self, address: u16) -> Result<u8, MemoryError> {

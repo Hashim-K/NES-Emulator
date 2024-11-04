@@ -59,51 +59,49 @@ impl Mapper for Mapper1 {
             self.mirroring = Mirroring::SingleScreenLower;
             self.prg_bank_mode = ProgramBankMode::Fixlast;
             self.chr_bank_mode = CharacterBankMode::Fullswitch;
+        } else if (self.shift_register & 1) != 1 {
+            self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
         } else {
-            if (self.shift_register & 1) != 1 {
-                self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
-            } else {
-                self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
-                match address {
-                    0x8000..0xa000 => {
-                        //self.debug.info_log(format!("editing control register to {:08b}", self.shift_register));
-                        match self.shift_register & 3 {
-                            0 => self.mirroring = Mirroring::SingleScreenLower,
-                            1 => self.mirroring = Mirroring::SingleScreenUpper,
-                            2 => self.mirroring = Mirroring::Horizontal,
-                            3 => self.mirroring = Mirroring::Vertical,
-                            _ => return Err(MemoryError::ShiftAddressError),
-                        }
-                        match (self.shift_register >> 2) & 3 {
-                            0 | 1 => self.prg_bank_mode = ProgramBankMode::Fullswitch,
-                            2 => self.prg_bank_mode = ProgramBankMode::Fixfirst,
-                            3 => self.prg_bank_mode = ProgramBankMode::Fixlast,
-                            _ => return Err(MemoryError::ShiftAddressError),
-                        }
-                        if (self.shift_register >> 4) & 1 == 0 {
-                            //self.debug.info_log(format!("changed chr bank mode to fullswitch"));
-                            self.chr_bank_mode = CharacterBankMode::Fullswitch
-                        } else {
-                            //self.debug.info_log(format!("changed chr bank mode to halfswitch"));
-                            self.chr_bank_mode = CharacterBankMode::Halfswitch
-                        }
+            self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
+            match address {
+                0x8000..0xa000 => {
+                    //self.debug.info_log(format!("editing control register to {:08b}", self.shift_register));
+                    match self.shift_register & 3 {
+                        0 => self.mirroring = Mirroring::SingleScreenLower,
+                        1 => self.mirroring = Mirroring::SingleScreenUpper,
+                        2 => self.mirroring = Mirroring::Horizontal,
+                        3 => self.mirroring = Mirroring::Vertical,
+                        _ => return Err(MemoryError::ShiftAddressError),
                     }
-                    0xa000..0xc000 => {
-                        //self.debug.info_log(format!("editing chr0 register to {:08b}", self.shift_register));
-                        self.chr_bank_0 = self.shift_register;
+                    match (self.shift_register >> 2) & 3 {
+                        0 | 1 => self.prg_bank_mode = ProgramBankMode::Fullswitch,
+                        2 => self.prg_bank_mode = ProgramBankMode::Fixfirst,
+                        3 => self.prg_bank_mode = ProgramBankMode::Fixlast,
+                        _ => return Err(MemoryError::ShiftAddressError),
                     }
-                    0xc000..0xe000 => {
-                        //self.debug.info_log(format!("editing chr1 register to {:08b}", self.shift_register));
-                        self.chr_bank_1 = self.shift_register;
+                    if (self.shift_register >> 4) & 1 == 0 {
+                        //self.debug.info_log(format!("changed chr bank mode to fullswitch"));
+                        self.chr_bank_mode = CharacterBankMode::Fullswitch
+                    } else {
+                        //self.debug.info_log(format!("changed chr bank mode to halfswitch"));
+                        self.chr_bank_mode = CharacterBankMode::Halfswitch
                     }
-                    0xe000.. => {
-                        //self.debug.info_log(format!("editing prg register to {:08b}", self.shift_register));
-                        self.prg_bank = self.shift_register;
-                    }
-                    _ => return Err(MemoryError::MapperAddressError(address)),
                 }
-                self.shift_register = 16;
+                0xa000..0xc000 => {
+                    //self.debug.info_log(format!("editing chr0 register to {:08b}", self.shift_register));
+                    self.chr_bank_0 = self.shift_register;
+                }
+                0xc000..0xe000 => {
+                    //self.debug.info_log(format!("editing chr1 register to {:08b}", self.shift_register));
+                    self.chr_bank_1 = self.shift_register;
+                }
+                0xe000.. => {
+                    //self.debug.info_log(format!("editing prg register to {:08b}", self.shift_register));
+                    self.prg_bank = self.shift_register;
+                }
+                _ => return Err(MemoryError::MapperAddressError(address)),
             }
+            self.shift_register = 16;
         }
 
         Ok(())
