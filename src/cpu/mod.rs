@@ -18,7 +18,6 @@ struct OperandValue {
     address: Option<u16>,
 }
 
-#[derive(Debug)]
 pub struct Cpu {
     accumulator: CpuRegister,
     x_register: CpuRegister,
