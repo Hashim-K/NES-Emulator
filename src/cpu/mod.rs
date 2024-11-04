@@ -105,9 +105,9 @@ impl CpuTemplate for Cpu {
     fn tick(&mut self, ppu: &mut Ppu) -> Result<(), MyTickError> {
         // set the cpu to the startup state fi
         if !self.initialized {
-            self.debug.info_log(format!("Initializing CPU"));
+            self.debug.info_log("Initializing CPU".to_string());
             self.initialize_cpu(ppu)?;
-            self.debug.info_log(format!("CPU initialized\n\n"));
+            self.debug.info_log("CPU initialized\n\n".to_string());
             self.print_cpu_state_header();
             Ok(())
         } else {
@@ -128,7 +128,7 @@ impl CpuTemplate for Cpu {
 
                 match self.interrupt_state {
                     InterruptState::NMI => {
-                        self.debug.info_log(format!("Executing NMI"));
+                        self.debug.info_log("Executing NMI".to_string());
                         self.push_pc_and_status_on_stack(ppu)?;
                         let nmi_lobyte = self.memory.read(0xFFFA, self, ppu)?;
                         let nmi_hibyte = self.memory.read(0xFFFB, self, ppu)?;
@@ -146,7 +146,7 @@ impl CpuTemplate for Cpu {
                         todo!("Add interface for IRQ")
                     }
                     InterruptState::NormalOperation => {
-                        self.debug.info_log(format!("\n\n---------------"));
+                        self.debug.info_log("\n\n---------------".to_string());
                         self.debug(self.memory.read(self.program_counter.get(), self, ppu)?);
                         let opcode = self.read_next_value(ppu)?;
                         self.debug.info_log(format!("Opcode: {:02X}", opcode));
@@ -170,11 +170,8 @@ impl CpuTemplate for Cpu {
                             self.branch_success = false;
                         }
 
-                        if !instruction.is_rmw() {
-                            if self.page_crossing {
-                                self.instruction_cycle_count += 1;
-                            }
-                            // add the rmw timing here
+                        if !instruction.is_rmw() && self.page_crossing {
+                            self.instruction_cycle_count += 1;
                         }
 
                         self.page_crossing = false;
@@ -276,9 +273,9 @@ impl Cpu {
 
     fn print_cpu_state_header(&self) {
         self.debug
-            .info_log(format!("A |X |Y |SP |PC   |T/MT |NV-BDIZC |Instr# |CYCLE"));
+            .info_log("A |X |Y |SP |PC   |T/MT |NV-BDIZC |Instr# |CYCLE".to_string());
         self.debug
-            .info_log(format!("----------------------------------------"));
+            .info_log("----------------------------------------".to_string());
     }
 
     fn print_cpu_state(&self) {
@@ -512,10 +509,10 @@ impl Cpu {
         let return_value: InterruptState;
         if self.nmi_line_triggered {
             return_value = InterruptState::NMI;
-            self.debug.info_log(format!("Interrupt state NMI polled"));
+            self.debug.info_log("Interrupt state NMI polled".to_string());
         } else if self.irq_line_triggered {
             return_value = InterruptState::IRQ;
-            self.debug.info_log(format!("Interrupt state IRQ polled"));
+            self.debug.info_log("Interrupt state IRQ polled".to_string());
         } else {
             return_value = InterruptState::NormalOperation;
             // self.debug.info_log("Interrupt state NormalOperation polled");

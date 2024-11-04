@@ -2272,10 +2272,10 @@ impl Instruction {
         let mut out_val: String = "None".to_string();
         let mut out_addr: String = "None".to_string();
 
-        if !operand_value.value.is_none() {
+        if operand_value.value.is_some() {
             out_val = format!("0x{:02X}", operand_value.value.unwrap());
         }
-        if !operand_value.address.is_none() {
+        if operand_value.address.is_some() {
             out_addr = format!("0x{:04X}", operand_value.address.unwrap());
         }
 
