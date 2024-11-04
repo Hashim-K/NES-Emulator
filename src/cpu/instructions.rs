@@ -1792,11 +1792,13 @@ impl Instruction {
                     let address = operand_value.address.expect("ISC Address is None");
                     cpu.memory.write(address, op_value.wrapping_add(1), ppu)?;
                     result = acc.wrapping_sub(op_value).wrapping_sub(2 - carry);
-                    did_carry =
-                        !((result >= acc) && (op_value != 0 || carry == 1) && (op_value != 0xFF));
+                    // use the carry condition of ADC
+                    did_carry = result < acc || (result == 0 && carry == 1) || op_value == 0xff;
                 } else {
                     result = acc.wrapping_sub(op_value).wrapping_sub(1 - carry);
-                    did_carry = !((result >= acc) && (op_value != 0 || carry == 1));
+                    did_carry = result < acc
+                        || (result == 0 && carry == 1)
+                        || (op_value == 0 && carry == 1);
                 }
 
                 // Check if sign is wrong. This happens in the following cases:
