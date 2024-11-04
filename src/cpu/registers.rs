@@ -44,35 +44,35 @@ impl StatusRegister {
     pub(crate) fn print(self) -> String {
         let mut output = String::new();
         if self.negative_bit {
-            output.push_str("N");
+            output.push('N');
         } else {
-            output.push_str("n");
+            output.push('n');
         }
         if self.overflow_bit {
-            output.push_str("V");
+            output.push('V');
         } else {
-            output.push_str("v");
+            output.push('v');
         }
         output.push_str("-b");
         if self.decimal_bit {
-            output.push_str("D");
+            output.push('D');
         } else {
-            output.push_str("d");
+            output.push('d');
         }
         if self.interrupt_bit {
-            output.push_str("I");
+            output.push('I');
         } else {
-            output.push_str("i");
+            output.push('i');
         }
         if self.zero_bit {
-            output.push_str("Z");
+            output.push('Z');
         } else {
-            output.push_str("z");
+            output.push('z');
         }
         if self.carry_bit {
-            output.push_str("C");
+            output.push('C');
         } else {
-            output.push_str("c");
+            output.push('c');
         }
         output
     }

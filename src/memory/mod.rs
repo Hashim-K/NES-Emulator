@@ -1,14 +1,12 @@
-use crate::cpu::debug::{self, DebugMode};
+use crate::cpu::debug::DebugMode;
 use crate::cpu::Cpu;
 use crate::error::{MemoryError, RomError};
 use controller::Controller;
 use log::warn;
 use mapper::get_mapper;
 use mapper::Mapper;
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
-use tudelft_nes_ppu::Buttons;
 use tudelft_nes_ppu::{Mirroring, Ppu, PpuRegister};
 
 mod controller;

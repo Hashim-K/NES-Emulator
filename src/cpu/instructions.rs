@@ -1458,7 +1458,7 @@ impl Instruction {
                     AddressingMode::Relative => Ok(2),
                     AddressingMode::ZeroPage => Ok(3),
                     AddressingMode::ZeroPageX => Ok(4),
-                    _ => Err(MainError::OpcodeError),
+                    _ => Err(MainError::Opcode),
                 },
                 0b01 => match instruction.addressing_mode {
                     AddressingMode::Absolute => Ok(4),
@@ -1469,7 +1469,7 @@ impl Instruction {
                     AddressingMode::IndirectY => Ok(5),
                     AddressingMode::ZeroPage => Ok(3),
                     AddressingMode::ZeroPageX => Ok(4),
-                    _ => Err(MainError::OpcodeError),
+                    _ => Err(MainError::Opcode),
                 },
                 0b10 => match instruction.addressing_mode {
                     AddressingMode::Accumulator => Ok(2),
@@ -1481,7 +1481,7 @@ impl Instruction {
                     AddressingMode::ZeroPage => Ok(5),
                     AddressingMode::ZeroPageX => Ok(6),
                     AddressingMode::ZeroPageY => Ok(6),
-                    _ => Err(MainError::OpcodeError),
+                    _ => Err(MainError::Opcode),
                 },
                 0b11 => {
                     if instruction.instruction_type == InstructionType::DCP
@@ -1526,7 +1526,7 @@ impl Instruction {
                         }
                     }
                 }
-                _ => Err(MainError::OpcodeError),
+                _ => Err(MainError::Opcode),
             },
         }
     }
@@ -2265,10 +2265,10 @@ impl Instruction {
         let mut out_val: String = "None".to_string();
         let mut out_addr: String = "None".to_string();
 
-        if !operand_value.value.is_none() {
+        if operand_value.value.is_some() {
             out_val = format!("0x{:02X}", operand_value.value.unwrap());
         }
-        if !operand_value.address.is_none() {
+        if operand_value.address.is_some() {
             out_addr = format!("0x{:04X}", operand_value.address.unwrap());
         }
 
