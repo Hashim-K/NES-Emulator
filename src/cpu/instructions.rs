@@ -1783,15 +1783,21 @@ impl Instruction {
 
             InstructionType::SBC | InstructionType::USBC | InstructionType::ISC => {
                 let acc = cpu.accumulator.get();
-                let mut op_value = operand_value.value.expect("Operand value for SBC is None");
+                let op_value = operand_value.value.expect("Operand value for SBC is None");
+                let result: u8;
+                let did_carry: bool;
+
+                let carry = u8::from(cpu.status_register.get_carry());
                 if self.instruction_type == InstructionType::ISC {
                     let address = operand_value.address.expect("ISC Address is None");
-                    op_value = op_value.wrapping_add(1);
-                    cpu.memory.write(address, op_value, ppu)?;
+                    cpu.memory.write(address, op_value.wrapping_add(1), ppu)?;
+                    result = acc.wrapping_sub(op_value).wrapping_sub(2 - carry);
+                    did_carry =
+                        !((result >= acc) && (op_value != 0 || carry == 1) && (op_value != 0xFF));
+                } else {
+                    result = acc.wrapping_sub(op_value).wrapping_sub(1 - carry);
+                    did_carry = !((result >= acc) && (op_value != 0 || carry == 1));
                 }
-                let carry = u8::from(cpu.status_register.get_carry());
-                let result = acc.wrapping_sub(op_value).wrapping_sub(1 - carry);
-                let did_carry = !((result >= acc) && (op_value != 0 || carry == 0));
 
                 // Check if sign is wrong. This happens in the following cases:
                 // positive - negative results in negative
