@@ -1,13 +1,11 @@
 use crate::cpu::debug::{self, DebugMode};
 use crate::cpu::Cpu;
 use crate::error::{MemoryError, RomError};
+use controller::Controller;
 use std::cell::RefCell;
-use std::ops::Deref;
-use tudelft_nes_ppu::Buttons;
 use tudelft_nes_ppu::{Mirroring, Ppu, PpuRegister};
 
-#[cfg(test)]
-use tudelft_nes_test::ROM_NROM_TEST;
+mod controller;
 
 fn address_to_ppu_register(a: u16) -> PpuRegister {
     let reg_num = (a & 0b111) as u8; // Translate address to register number
@@ -425,6 +423,9 @@ impl Cartridge {
     }
 }
 
+#[cfg(test)]
+use tudelft_nes_test::ROM_NROM_TEST;
+
 #[test]
 fn test_parse_header() {
     let expected_header = RomHeader {
@@ -441,54 +442,4 @@ fn test_parse_header() {
         Cartridge::parse_header(ROM_NROM_TEST, &DebugMode::NoDebug).unwrap(),
         expected_header
     );
-}
-
-#[derive(Debug)]
-struct Controller {
-    strobe: bool,
-    buttons: Buttons,
-    read_index: u8,
-}
-
-impl Controller {
-    fn write(&mut self, byte: u8) {
-        self.strobe = (byte & 0b1) == 1;
-    }
-
-    fn clock_pulse(&mut self, ppu: &Ppu) {
-        if self.strobe {
-            self.buttons = ppu.get_joypad_state();
-            self.read_index = 0;
-        }
-    }
-
-    fn read(&mut self, ppu: &Ppu) -> u8 {
-        let result = u8::from(match self.read_index {
-            0 => self.buttons.a,
-            1 => self.buttons.b,
-            2 => self.buttons.select,
-            3 => self.buttons.start,
-            4 => self.buttons.up,
-            5 => self.buttons.down,
-            6 => self.buttons.left,
-            7 => self.buttons.right,
-            _ => panic!("Button reading out of bounds!"),
-        });
-
-        // Advance reading index
-        self.read_index += 1;
-        if self.read_index > 7 {
-            self.read_index = 0
-        }
-        self.clock_pulse(ppu);
-        result
-    }
-
-    fn new() -> Self {
-        Controller {
-            strobe: false,
-            buttons: Buttons::default(),
-            read_index: 0,
-        }
-    }
 }
