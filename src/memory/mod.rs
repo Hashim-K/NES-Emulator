@@ -1,4 +1,4 @@
-use crate::cpu::debug::{DebugMode};
+use crate::cpu::debug::DebugMode;
 use crate::cpu::Cpu;
 use crate::error::{MemoryError, RomError};
 use controller::Controller;
@@ -172,10 +172,6 @@ impl Memory {
             // Cartridge memory
             0x4020.. => Ok(self.cartridge.read(address)?),
         }
-    }
-
-    pub fn get_mirroring(&self) -> Mirroring {
-        self.cartridge.header.mirroring
     }
 }
 
@@ -437,7 +433,7 @@ fn test_parse_header() {
         mapper_number: 0,
     };
     assert_eq!(
-        Cartridge::parse_header(ROM_NROM_TEST, &DebugMode::NoDebug).unwrap(),
+        Cartridge::parse_header(ROM_NROM_TEST, &DebugMode::No).unwrap(),
         expected_header
     );
 }

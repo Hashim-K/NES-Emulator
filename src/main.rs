@@ -50,9 +50,8 @@ mod tests {
     use crate::cpu::Cpu;
     use crate::Mirroring;
     use log::LevelFilter;
-    use std::thread;
     use tudelft_nes_ppu::run_cpu_headless_for;
-    use tudelft_nes_test::{run_tests, TestSelector, TestableCpu, ROM_NROM_TEST};
+    use tudelft_nes_test::{run_tests, TestSelector, TestableCpu};
 
     #[test]
     fn test_nrom() {

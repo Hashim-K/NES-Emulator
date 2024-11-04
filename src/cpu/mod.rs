@@ -51,7 +51,7 @@ impl TestableCpu for Cpu {
     type GetCpuError = MyGetCpuError;
 
     fn get_cpu(_rom: &[u8]) -> Result<Self, MyGetCpuError> {
-        let debug: DebugMode = DebugMode::EmuDebug;
+        let debug: DebugMode = DebugMode::Emu;
         Ok(Cpu {
             accumulator: CpuRegister::default(),
             x_register: CpuRegister::default(),
@@ -253,8 +253,6 @@ impl Cpu {
                 .map(|arg| format!("{:02X}", arg))
                 .collect::<Vec<_>>()
                 .join(" ");
-            let ppu_dots_per_scanline = 341;
-            let ppu_dots = self.total_cycles * 3 % ppu_dots_per_scanline;
 
             self.debug.emu_log(format!(
                 "{:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{}",
@@ -509,10 +507,12 @@ impl Cpu {
         let return_value: InterruptState;
         if self.nmi_line_triggered {
             return_value = InterruptState::NMI;
-            self.debug.info_log("Interrupt state NMI polled".to_string());
+            self.debug
+                .info_log("Interrupt state NMI polled".to_string());
         } else if self.irq_line_triggered {
             return_value = InterruptState::IRQ;
-            self.debug.info_log("Interrupt state IRQ polled".to_string());
+            self.debug
+                .info_log("Interrupt state IRQ polled".to_string());
         } else {
             return_value = InterruptState::NormalOperation;
             // self.debug.info_log("Interrupt state NormalOperation polled");
