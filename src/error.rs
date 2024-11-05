@@ -42,11 +42,11 @@ pub enum MyGetCpuError {
 #[derive(Debug, Error)]
 pub enum MainError {
     #[error("Get Cpu Error occurred: {0}")]
-    MyGetCpuError(#[from] MyGetCpuError),
+    MyGetCpu(#[from] MyGetCpuError),
 
     #[error("Memory Error occurred: {0}")]
-    MemoryError(#[from] MemoryError),
+    Memory(#[from] MemoryError),
 
     #[error("Opcode Error occurred")]
-    OpcodeError,
+    Opcode,
 }

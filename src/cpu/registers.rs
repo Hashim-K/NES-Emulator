@@ -41,42 +41,6 @@ impl StatusRegister {
             | (self.negative_bit as u8) << 7
     }
 
-    pub(crate) fn print(self) -> String {
-        let mut output = String::new();
-        if self.negative_bit {
-            output.push_str("N");
-        } else {
-            output.push_str("n");
-        }
-        if self.overflow_bit {
-            output.push_str("V");
-        } else {
-            output.push_str("v");
-        }
-        output.push_str("-b");
-        if self.decimal_bit {
-            output.push_str("D");
-        } else {
-            output.push_str("d");
-        }
-        if self.interrupt_bit {
-            output.push_str("I");
-        } else {
-            output.push_str("i");
-        }
-        if self.zero_bit {
-            output.push_str("Z");
-        } else {
-            output.push_str("z");
-        }
-        if self.carry_bit {
-            output.push_str("C");
-        } else {
-            output.push_str("c");
-        }
-        output
-    }
-
     pub(crate) fn set_from_stack(&mut self, value: u8) {
         self.carry_bit = (value & 1 << 0) != 0;
         self.zero_bit = (value & 1 << 1) != 0;
