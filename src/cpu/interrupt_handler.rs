@@ -4,6 +4,8 @@ pub(crate) enum InterruptState {
     NormalOperation,
     IRQ,
     NMI,
+    Uninitialized,
+    Booting,
 }
 //
 //
