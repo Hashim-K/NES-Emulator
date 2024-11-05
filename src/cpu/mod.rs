@@ -35,7 +35,6 @@ pub struct Cpu {
     nmi_line_current: bool,
     nmi_line_triggered: bool,
     irq_line_triggered: bool,
-    initialized: bool,
     branch_success: bool,
     page_crossing: bool,
     memory: Memory,
@@ -51,7 +50,7 @@ impl TestableCpu for Cpu {
     type GetCpuError = MyGetCpuError;
 
     fn get_cpu(_rom: &[u8]) -> Result<Self, MyGetCpuError> {
-        let debug: DebugMode = DebugMode::Emu;
+        let debug: DebugMode = DebugMode::No;
         Ok(Cpu {
             accumulator: CpuRegister::default(),
             x_register: CpuRegister::default(),
@@ -66,12 +65,11 @@ impl TestableCpu for Cpu {
             current_cycle: 1,
             instruction_cycle_count: 0,
             interrupt_polling_cycle: 0,
-            interrupt_state: InterruptState::NormalOperation,
+            interrupt_state: InterruptState::Uninitialized,
             nmi_line_prev: false,
             nmi_line_current: false,
             nmi_line_triggered: false,
             irq_line_triggered: false,
-            initialized: false,
             branch_success: false,
             page_crossing: false,
             total_cycles: 0,
@@ -104,93 +102,108 @@ impl CpuTemplate for Cpu {
 
     fn tick(&mut self, ppu: &mut Ppu) -> Result<(), MyTickError> {
         // set the cpu to the startup state fi
-        if !self.initialized {
-            self.debug.info_log("Initializing CPU".to_string());
-            self.initialize_cpu(ppu)?;
-            self.debug.info_log("CPU initialized\n\n".to_string());
-            self.print_cpu_state_header();
-            Ok(())
-        } else {
-            if self.current_cycle == self.interrupt_polling_cycle {
-                // this line is for interrupt hijacking to be working later
-                let current_interrupt = self.poll_interrupts();
-                if current_interrupt == InterruptState::IRQ
-                    && self.status_register.get_bit(StatusRegisterBit::Interrupt)
-                {
-                    self.interrupt_state = InterruptState::NormalOperation;
-                } else {
-                    self.interrupt_state = current_interrupt;
-                }
-            }
-            // execute interrupt or opcode
-            if self.current_cycle > self.instruction_cycle_count {
-                self.current_cycle = 1;
-
-                match self.interrupt_state {
-                    InterruptState::NMI => {
-                        self.debug.info_log("Executing NMI".to_string());
-                        self.push_pc_and_status_on_stack(ppu)?;
-                        let nmi_lobyte = self.memory.read(0xFFFA, self, ppu)?;
-                        let nmi_hibyte = self.memory.read(0xFFFB, self, ppu)?;
-                        self.program_counter.set_lobyte(nmi_lobyte);
-                        self.program_counter.set_hibyte(nmi_hibyte);
-
-                        self.instruction_cycle_count = 7;
-                        self.interrupt_state = InterruptState::NormalOperation;
-                        self.interrupt_polling_cycle = 0;
-                        // TODO: there is conflicting info on masswerk and nesdev whether this line should happen
-                        // self.status_register
-                        //     .set_bit(StatusRegisterBit::InterruptBit, true);
-                    }
-                    InterruptState::IRQ => {
-                        todo!("Add interface for IRQ")
-                    }
-                    InterruptState::NormalOperation => {
-                        self.debug.info_log("\n\n---------------".to_string());
-                        self.debug(self.memory.read(self.program_counter.get(), self, ppu)?);
-                        let opcode = self.read_next_value(ppu)?;
-                        self.debug.info_log(format!("Opcode: {:02X}", opcode));
-                        let instruction: Instruction =
-                            Instruction::decode(opcode).expect("Failed decoding opcode");
-                        instruction.execute(self, ppu)?;
-
-                        self.instruction_cycle_count =
-                            Instruction::get_instruction_duration(opcode)?;
-                        self.debug.info_log(format!(
-                            "Instruction cycle count set to {}",
-                            self.instruction_cycle_count,
-                        ));
-
-                        // make sure the interrupts are polled before the second cycle of the conditional branch operations
-                        // it could still be wrong, i dont understand this part on nesdev
-                        self.interrupt_polling_cycle = self.instruction_cycle_count;
-
-                        if self.branch_success {
-                            self.instruction_cycle_count += 1;
-                            self.branch_success = false;
-                        }
-
-                        if !instruction.is_rmw() && self.page_crossing {
-                            self.instruction_cycle_count += 1;
-                        }
-
-                        self.page_crossing = false;
-                        self.current_instruction = instruction;
-                        self.instructions_executed += 1;
-                        self.print_cpu_state_header();
-                    }
-                }
-            }
-
-            // interrupt hijacking, if an interrupt arrives in the first four cycles of a BRK
-            if self.current_instruction.instruction_type == InstructionType::BRK
-                && self.current_cycle < 4
+        if self.current_cycle == self.interrupt_polling_cycle {
+            // this line is for interrupt hijacking to be working later
+            let current_interrupt = self.poll_interrupts();
+            if current_interrupt == InterruptState::IRQ
+                && self.status_register.get_bit(StatusRegisterBit::Interrupt)
             {
-                let current_interrupt = self.poll_interrupts();
-                match current_interrupt {
-                    InterruptState::NMI => {
-                        let nmi_lobyte = self.memory.read(0xFFFA, self, ppu)?;
-                        let nmi_hibyte = self.memory.read(0xFFFB, self, ppu)?;
+                self.interrupt_state = InterruptState::NormalOperation;
+            } else {
+                self.interrupt_state = current_interrupt;
+            }
+        }
+        // execute interrupt or opcode
+        if self.current_cycle > self.instruction_cycle_count {
+            self.current_cycle = 1;
+
+            match self.interrupt_state {
+                InterruptState::Uninitialized => {
+                    self.debug.info_log("Initializing CPU".to_string());
+                    self.initialize_cpu(ppu)?;
+                    self.debug.info_log("CPU initialized\n\n".to_string());
+                    self.print_cpu_state_header();
+                    self.interrupt_state = InterruptState::Booting;
+                }
+                InterruptState::Booting => {
+                    if self.total_cycles == 6 {
+                        self.interrupt_state = InterruptState::NormalOperation;
+                    }
+                }
+                InterruptState::NMI => {
+                    self.debug.info_log("Executing NMI".to_string());
+                    self.push_pc_and_status_on_stack(ppu)?;
+                    let nmi_lobyte = self.memory.read(0xFFFA, self, ppu)?;
+                    let nmi_hibyte = self.memory.read(0xFFFB, self, ppu)?;
+                    self.program_counter.set_lobyte(nmi_lobyte);
+                    self.program_counter.set_hibyte(nmi_hibyte);
+
+                    self.instruction_cycle_count = 7;
+                    self.interrupt_state = InterruptState::NormalOperation;
+                    self.interrupt_polling_cycle = 0;
+                    // TODO: there is conflicting info on masswerk and nesdev whether this line should happen
+                    // self.status_register
+                    //     .set_bit(StatusRegisterBit::InterruptBit, true);
+                }
+                InterruptState::IRQ => {
+                    todo!("Add interface for IRQ")
+                }
+                InterruptState::NormalOperation => {
+                    self.debug.info_log("\n\n---------------".to_string());
+                    self.debug(self.memory.read(self.program_counter.get(), self, ppu)?);
+                    let opcode = self.read_next_value(ppu)?;
+                    self.debug.info_log(format!("Opcode: {:02X}", opcode));
+                    let instruction: Instruction =
+                        Instruction::decode(opcode).expect("Failed decoding opcode");
+                    instruction.execute(self, ppu)?;
+
+                    self.instruction_cycle_count = Instruction::get_instruction_duration(opcode)?;
+                    self.debug.info_log(format!(
+                        "Instruction cycle count set to {}",
+                        self.instruction_cycle_count,
+                    ));
+
+                    // make sure the interrupts are polled before the second cycle of the conditional branch operations
+                    // it could still be wrong, i dont understand this part on nesdev
+                    self.interrupt_polling_cycle = self.instruction_cycle_count;
+
+                    if self.branch_success {
+                        self.instruction_cycle_count += 1;
+                        self.branch_success = false;
+                    }
+
+                    if !instruction.is_rmw() && self.page_crossing {
+                        self.instruction_cycle_count += 1;
+                    }
+
+                    self.page_crossing = false;
+                    self.current_instruction = instruction;
+                    self.instructions_executed += 1;
+                    self.print_cpu_state_header();
+                }
+            }
+        }
+
+        // interrupt hijacking, if an interrupt arrives in the first four cycles of a BRK
+        if self.current_instruction.instruction_type == InstructionType::BRK
+            && self.current_cycle < 4
+        {
+            let current_interrupt = self.poll_interrupts();
+            match current_interrupt {
+                InterruptState::NMI => {
+                    let nmi_lobyte = self.memory.read(0xFFFA, self, ppu)?;
+                    let nmi_hibyte = self.memory.read(0xFFFB, self, ppu)?;
+                    self.program_counter.set_lobyte(nmi_lobyte);
+                    self.program_counter.set_hibyte(nmi_hibyte);
+
+                    self.instruction_cycle_count = 7;
+                    self.interrupt_state = InterruptState::NormalOperation;
+                    self.interrupt_polling_cycle = 0;
+                }
+                InterruptState::IRQ => {
+                    if !self.status_register.get_bit(StatusRegisterBit::Interrupt) {
+                        let nmi_lobyte = self.memory.read(0xFFFE, self, ppu)?;
+                        let nmi_hibyte = self.memory.read(0xFFFF, self, ppu)?;
                         self.program_counter.set_lobyte(nmi_lobyte);
                         self.program_counter.set_hibyte(nmi_hibyte);
 
@@ -198,33 +211,21 @@ impl CpuTemplate for Cpu {
                         self.interrupt_state = InterruptState::NormalOperation;
                         self.interrupt_polling_cycle = 0;
                     }
-                    InterruptState::IRQ => {
-                        if !self.status_register.get_bit(StatusRegisterBit::Interrupt) {
-                            let nmi_lobyte = self.memory.read(0xFFFE, self, ppu)?;
-                            let nmi_hibyte = self.memory.read(0xFFFF, self, ppu)?;
-                            self.program_counter.set_lobyte(nmi_lobyte);
-                            self.program_counter.set_hibyte(nmi_hibyte);
-
-                            self.instruction_cycle_count = 7;
-                            self.interrupt_state = InterruptState::NormalOperation;
-                            self.interrupt_polling_cycle = 0;
-                        }
-                    }
-                    InterruptState::NormalOperation => (),
                 }
+                _ => (),
             }
-
-            if self.nmi_line_current && !self.nmi_line_prev {
-                self.nmi_line_triggered = true;
-            }
-            self.print_cpu_state();
-            self.current_cycle += 1;
-            self.total_cycles += 1;
-            self.nmi_line_prev = self.nmi_line_current;
-            self.nmi_line_current = false;
-
-            Ok(())
         }
+
+        if self.nmi_line_current && !self.nmi_line_prev {
+            self.nmi_line_triggered = true;
+        }
+        self.print_cpu_state();
+        self.current_cycle += 1;
+        self.total_cycles += 1;
+        self.nmi_line_prev = self.nmi_line_current;
+        self.nmi_line_current = false;
+
+        Ok(())
     }
     fn ppu_read_chr_rom(&self, _offset: u16) -> u8 {
         self.memory
@@ -534,10 +535,7 @@ impl Cpu {
         self.status_register
             .set_bit(StatusRegisterBit::Interrupt, true);
 
-        self.instruction_cycle_count = 7;
-        self.interrupt_state = InterruptState::NormalOperation;
         self.interrupt_polling_cycle = 0;
-        self.initialized = true;
         self.total_cycles = 0;
         self.instructions_executed = 0;
         Ok(())
