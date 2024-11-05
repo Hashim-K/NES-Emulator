@@ -163,17 +163,17 @@ impl CpuTemplate for Cpu {
                         self.instruction_cycle_count,
                     ));
 
+                    if !instruction.is_rmw() && self.page_crossing {
+                        self.instruction_cycle_count += 1;
+                    }
+
                     // make sure the interrupts are polled before the second cycle of the conditional branch operations
                     // it could still be wrong, i dont understand this part on nesdev
-                    self.interrupt_polling_cycle = self.instruction_cycle_count;
+                    self.interrupt_polling_cycle = self.instruction_cycle_count - 1;
 
                     if self.branch_success {
                         self.instruction_cycle_count += 1;
                         self.branch_success = false;
-                    }
-
-                    if !instruction.is_rmw() && self.page_crossing {
-                        self.instruction_cycle_count += 1;
                     }
 
                     self.page_crossing = false;
