@@ -60,14 +60,12 @@ mod tests {
         assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
     }
 
-    #[ignore]
     #[test]
     fn test_official_instructions() {
         let result = run_tests::<Cpu>(TestSelector::OFFICIAL_INSTRS);
         assert!(result.is_ok(), "TEST FAILED: {}", result.unwrap_err());
     }
 
-    #[ignore]
     #[test]
     fn test_nestest() {
         let result = run_tests::<Cpu>(TestSelector::NESTEST);
