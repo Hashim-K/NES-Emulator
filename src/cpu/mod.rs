@@ -43,9 +43,7 @@ pub struct Cpu {
     debug: DebugMode,
 }
 
-/// Implementing this trait allows automated tests to be run on your cpu.
-/// The crate `tudelft-nes-test` contains all kinds of small and large scale
-/// tests to find bugs in your cpu.
+/// Trait for making the CPU testable in autoated tests
 impl TestableCpu for Cpu {
     type GetCpuError = MyGetCpuError;
 
@@ -89,16 +87,22 @@ impl TestableCpu for Cpu {
     }
 }
 
-/// See docs of `Cpu` for explanations of each function
+/// Trait for the CPU to be used by the PPU.
 impl CpuTemplate for Cpu {
     type TickError = MyTickError;
 
+    // Only needed when the specific mapper you implement has character RAM, writable memory on the
+    // cartridge. Most games don’t require this. If you just don’t implement this method it will
+    // default to ignoring all writes (as if there was only character ROM, not RAM)
     fn ppu_memory_write(&mut self, _address: u16, _value: u8) {
         if let Err(x) = self.memory.write_ppu_byte(_address, _value) {
             warn!("Ppu write error: {}", x);
         }
     }
 
+    // Called every cpu cycle. Note that some instructions take multiple cycles, which is important
+    // for some games to work properly. That means that it won’t work to execute an entire instruction
+    // every time tick is called. It should take multiple calls to tick to execute one instruction.
     fn tick(&mut self, ppu: &mut Ppu) -> Result<(), MyTickError> {
         // set the cpu to the startup state fi
         if self.current_cycle == self.interrupt_polling_cycle {
@@ -226,18 +230,25 @@ impl CpuTemplate for Cpu {
 
         Ok(())
     }
+
+    // This method is called when the PPU (implemented by us) wants to read a byte from memory.
+    // The byte that is actually read, may depend on the current mapper state. Since you implement
+    // the mapper, you should make sure the correct byte is returned here.
     fn ppu_read_chr_rom(&self, _offset: u16) -> u8 {
         self.memory
             .read_ppu_byte(_offset)
             .expect("Failed reading character ROM")
     }
 
+    // Sometimes the PPU needs to give a non-maskable interrupt to the cpu. If it does, this method
+    // is called by the PPU.
     fn non_maskable_interrupt(&mut self) {
         self.on_non_maskable_interrupt();
     }
 }
 
 impl Cpu {
+    // Get instruction length of an addressing mode
     fn addressing_mode_get_bytes(&self, addressing_mode: &AddressingMode) -> Vec<u8> {
         let length = addressing_mode.length() as u16;
         (0..length)
@@ -245,6 +256,8 @@ impl Cpu {
             .collect::<Vec<_>>()
     }
 
+    // Print debug information in a format that can be compared with other
+    // emulators
     fn debug(&self, opcode: u8) {
         if self.debug == DebugMode::Emu {
             if let Ok(instruction) = Instruction::decode(opcode) {
@@ -292,6 +305,9 @@ impl Cpu {
         );
     }
 
+    // Get operand value and address of an instruction.
+    //
+    // If an instruction is write only it will not read the value.
     fn get_operand_value(
         &mut self,
         addressing_mode: &AddressingMode,
@@ -471,6 +487,7 @@ impl Cpu {
         }
     }
 
+    // Read the next value at the instruction pointer and increment it
     fn read_next_value(&mut self, ppu: &mut Ppu) -> Result<u8, MainError> {
         let value = self.memory.read(self.program_counter.get(), self, ppu)?;
         log::debug!(
@@ -483,10 +500,12 @@ impl Cpu {
         Ok(value)
     }
 
+    // Run this function when a NMI occurs
     pub fn on_non_maskable_interrupt(&mut self) {
         self.nmi_line_current = true;
     }
 
+    // Push the process counter and stack pointer on the stack
     fn push_pc_and_status_on_stack(&mut self, ppu: &mut Ppu) -> Result<(), MemoryError> {
         self.memory.write(
             self.stack_pointer.get() as u16 + 0x0100,
@@ -509,6 +528,9 @@ impl Cpu {
         Ok(())
     }
 
+    // Check if an interrupt has occurred and return the type of interrupt
+    //
+    // This function will prioritize NMI's over IRQ's
     fn poll_interrupts(&mut self) -> InterruptState {
         let return_value: InterruptState;
         if self.nmi_line_triggered {
@@ -525,6 +547,9 @@ impl Cpu {
         return_value
     }
 
+    // Perform all the initialization steps of the CPU
+    //
+    // After the initilization the CPU should wait for 7 cycles
     fn initialize_cpu(&mut self, ppu: &mut Ppu) -> Result<(), MemoryError> {
         let lobyte = self.memory.read(0xFFFC, self, ppu)?;
         log::debug!("lobyte: {:02X}", lobyte);
