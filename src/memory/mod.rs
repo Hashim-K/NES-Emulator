@@ -30,6 +30,7 @@ pub struct Memory {
     oamdata: [u8; 256],
 }
 
+// A struct for handling memory access for the PPU and CPU
 impl Memory {
     pub fn new(rom_bytes: &[u8]) -> Result<Memory, RomError> {
         Ok(Memory {
@@ -41,6 +42,9 @@ impl Memory {
         })
     }
 
+    // Writes to the character ROM
+    //
+    // This funtion should be used when the PPU wants to write to the character ROM
     pub fn write_ppu_byte(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
         if self.cartridge.header.charactor_memory_size != 0 {
             if self.cartridge.chr_bank_mode == CharacterBankMode::Fullswitch {
@@ -75,6 +79,9 @@ impl Memory {
         Ok(())
     }
 
+    // Returns a part of character ROM
+    //
+    // This funtion should be used when the PPU wants to read the character ROM
     pub fn read_ppu_byte(&self, address: u16) -> Result<u8, MemoryError> {
         if self.cartridge.header.charactor_memory_size != 0 {
             if self.cartridge.chr_bank_mode == CharacterBankMode::Fullswitch {
@@ -106,6 +113,10 @@ impl Memory {
         }
     }
 
+    // Write a byte to memeory
+    //
+    // This function writes to a part of memory, using the memory map as defined here:
+    // https://www.nesdev.org/wiki/CPU_memory_map
     pub fn write(&mut self, address: u16, value: u8, ppu: &mut Ppu) -> Result<(), MemoryError> {
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
@@ -135,6 +146,10 @@ impl Memory {
         Ok(())
     }
 
+    // Read a bit of memory
+    //
+    // This function reads a part of memory, using the memory map as defined here:
+    // https://www.nesdev.org/wiki/CPU_memory_map
     pub fn read(&self, address: u16, cpu: &Cpu, ppu: &mut Ppu) -> Result<u8, MemoryError> {
         let value = match address {
             0x2000..0x4000 => {
@@ -164,18 +179,21 @@ impl Memory {
         value
     }
 
+    // Reads the parts of memory that don't need access to the PPU
+    //
+    // This function can only read parts of memory that don't need access to the PPU. This function
+    // is useful for testing, but don't use this in any other part of the code.
     pub fn read_cpu_mem(&self, address: u16) -> Result<u8, MemoryError> {
         match address {
             // RAM reading, including mirroring
             ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]),
             // NES PPU registers
             0x2000..0x4000 => self.read_ppu_byte(address - 0x2000),
-            //panic!("You have to use the read function if you want to access the ppu memory")
-            //}
             // Open bus, undefined behavior
             0x4000..0x4016 => Ok(0),
             0x4016 => {
-                panic!("You have to use the read function if you want to access the controller")
+                warn!("You have to use the read function if you want to access the controller");
+                Ok(0)
             }
             0x4017 => {
                 // TODO: impelement controller 2
@@ -231,7 +249,13 @@ pub struct Cartridge {
     init_code: Vec<u8>,
 }
 
+// A struct handling parsing of Ines files and mapping it to an address space.
+//
+// It implements the NROM and MMC1 mappers.
 impl Cartridge {
+    // Parse the header of an Ines file
+    //
+    //
     fn parse_header(rom_bytes: &[u8]) -> Result<RomHeader, RomError> {
         // Check rom signature
         if rom_bytes[0..4] != *(b"NES\x1a") {
@@ -308,6 +332,7 @@ impl Cartridge {
         })
     }
 
+    // Write to memory using one of the mappers
     fn write(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
         match self.header.mapper_number {
             0 => {
@@ -409,6 +434,7 @@ impl Cartridge {
         Ok(())
     }
 
+    // Read from memory using one of the mappers
     fn read(&self, address: u16) -> Result<u8, RomError> {
         match self.header.mapper_number {
             0 => {

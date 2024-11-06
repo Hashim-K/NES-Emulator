@@ -1,3 +1,4 @@
+use log::warn;
 use tudelft_nes_ppu::{Buttons, Ppu};
 
 #[derive(Debug)]
@@ -38,7 +39,10 @@ impl Controller {
             5 => self.buttons.down,
             6 => self.buttons.left,
             7 => self.buttons.right,
-            _ => panic!("Button reading out of bounds!"),
+            _ => {
+                warn!("Button reading out of bounds!");
+                false
+            }
         });
 
         // Advance reading index

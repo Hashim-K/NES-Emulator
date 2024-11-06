@@ -1,5 +1,6 @@
 use crate::cpu::{Cpu, StatusRegisterBit};
 use crate::MainError;
+use log::warn;
 use tudelft_nes_ppu::Ppu;
 
 use super::OperandValue;
@@ -1513,7 +1514,13 @@ impl Instruction {
                             AddressingMode::ZeroPage => Ok(5),
                             AddressingMode::ZeroPageX => Ok(6),
                             // AddressingMode::ZeroPageY => Ok(4),
-                            _ => todo!(),
+                            _ => {
+                                warn!(
+                                    "Unknown addressing mode length for addressing mode {:?}",
+                                    instruction.addressing_mode
+                                );
+                                Ok(2)
+                            }
                         }
                     } else {
                         match instruction.addressing_mode {
@@ -1530,7 +1537,13 @@ impl Instruction {
                             AddressingMode::ZeroPage => Ok(3),
                             AddressingMode::ZeroPageX => Ok(6),
                             AddressingMode::ZeroPageY => Ok(4),
-                            _ => todo!(),
+                            _ => {
+                                warn!(
+                                    "Unknown addressing mode length for addressing mode {:?}",
+                                    instruction.addressing_mode
+                                );
+                                Ok(2)
+                            }
                         }
                     }
                 }
@@ -1834,7 +1847,10 @@ impl Instruction {
                     InstructionType::CMP => cpu.accumulator.get(),
                     InstructionType::CPX => cpu.x_register.get(),
                     InstructionType::CPY => cpu.y_register.get(),
-                    _ => panic!(),
+                    _ => {
+                        warn!("Wrong instruction type");
+                        0
+                    }
                 };
                 let value = operand_value
                     .value
@@ -2254,7 +2270,13 @@ impl Instruction {
 
             InstructionType::NOP => Ok(()),
 
-            _ => todo!(),
+            _ => {
+                warn!(
+                    "Instruction type {:?} not implemented",
+                    self.instruction_type
+                );
+                Ok(())
+            }
         }
     }
 
