@@ -1457,7 +1457,10 @@ impl Instruction {
                     AddressingMode::Relative => Ok(2),
                     AddressingMode::ZeroPage => Ok(3),
                     AddressingMode::ZeroPageX => Ok(4),
-                    _ => Err(MainError::Opcode),
+                    _ => Err(MainError::Opcode(format!(
+                        "Missing addressing mode for CC - {}",
+                        cc,
+                    ))),
                 },
                 0b01 => match instruction.addressing_mode {
                     AddressingMode::Absolute => Ok(4),
@@ -1468,7 +1471,10 @@ impl Instruction {
                     AddressingMode::IndirectY => Ok(5),
                     AddressingMode::ZeroPage => Ok(3),
                     AddressingMode::ZeroPageX => Ok(4),
-                    _ => Err(MainError::Opcode),
+                    _ => Err(MainError::Opcode(format!(
+                        "Missing addressing mode for CC - {}",
+                        cc,
+                    ))),
                 },
                 0b10 => match instruction.addressing_mode {
                     AddressingMode::Accumulator => Ok(2),
@@ -1480,7 +1486,10 @@ impl Instruction {
                     AddressingMode::ZeroPage => Ok(5),
                     AddressingMode::ZeroPageX => Ok(6),
                     AddressingMode::ZeroPageY => Ok(6),
-                    _ => Err(MainError::Opcode),
+                    _ => Err(MainError::Opcode(format!(
+                        "Missing addressing mode for CC - {}",
+                        cc,
+                    ))),
                 },
                 0b11 => {
                     if instruction.instruction_type == InstructionType::DCP
@@ -1525,7 +1534,10 @@ impl Instruction {
                         }
                     }
                 }
-                _ => Err(MainError::Opcode),
+                _ => Err(MainError::Opcode(format!(
+                    "Missing addressing mode for CC - {}",
+                    cc,
+                ))),
             },
         }
     }
