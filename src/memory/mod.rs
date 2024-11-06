@@ -1,4 +1,3 @@
-use crate::cpu::debug::DebugMode;
 use crate::cpu::Cpu;
 use crate::error::{MemoryError, RomError};
 use controller::Controller;
@@ -26,18 +25,16 @@ pub struct Memory {
     internal_ram: [u8; 2048],
     cartridge: Cartridge,
     controller: RefCell<Controller>,
-    debug: DebugMode,
     ppuaddress: u32,
     oamdata: [u8; 256],
 }
 
 impl Memory {
-    pub fn new(rom_bytes: &[u8], debugmode: DebugMode) -> Result<Memory, RomError> {
+    pub fn new(rom_bytes: &[u8]) -> Result<Memory, RomError> {
         Ok(Memory {
-            cartridge: Cartridge::new(rom_bytes, debugmode.clone())?,
+            cartridge: Cartridge::new(rom_bytes)?,
             internal_ram: [0; 2048],
             controller: RefCell::new(Controller::new()),
-            debug: debugmode,
             ppuaddress: 0,
             oamdata: [0; 256],
         })
@@ -230,11 +227,10 @@ pub struct Cartridge {
     pgr_ram: [u8; 8192], // 8 KiB of program ram
     chr_ram: [u8; 8192],
     init_code: Vec<u8>,
-    debug: DebugMode,
 }
 
 impl Cartridge {
-    fn parse_header(rom_bytes: &[u8], debug: &DebugMode) -> Result<RomHeader, RomError> {
+    fn parse_header(rom_bytes: &[u8]) -> Result<RomHeader, RomError> {
         // Check rom signature
         if rom_bytes[0..4] != *(b"NES\x1a") {
             log::debug!("{:?}", b"NES\x1a");
@@ -259,8 +255,8 @@ impl Cartridge {
         })
     }
 
-    fn new(rom_bytes: &[u8], debug: DebugMode) -> Result<Cartridge, RomError> {
-        let header = Self::parse_header(rom_bytes, &debug)?;
+    fn new(rom_bytes: &[u8]) -> Result<Cartridge, RomError> {
+        let header = Self::parse_header(rom_bytes)?;
         let mut total_length: u32 =
             header.charactor_memory_size as u32 * 8192 + header.program_rom_size as u32 * 16384;
         if header.trainer {
@@ -304,7 +300,6 @@ impl Cartridge {
             pgr_ram: [0; 8192],
             chr_ram: [0; 8192],
             init_code: cartridge_init_code,
-            debug,
         })
         // TODO: implement error handling
     }
@@ -458,7 +453,7 @@ fn test_parse_header() {
         mapper_number: 0,
     };
     assert_eq!(
-        Cartridge::parse_header(ROM_NROM_TEST, &DebugMode::No).unwrap(),
+        Cartridge::parse_header(ROM_NROM_TEST).unwrap(),
         expected_header
     );
 }

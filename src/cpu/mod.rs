@@ -50,7 +50,6 @@ impl TestableCpu for Cpu {
     type GetCpuError = MyGetCpuError;
 
     fn get_cpu(_rom: &[u8]) -> Result<Self, MyGetCpuError> {
-        let debug: DebugMode = DebugMode::No;
         Ok(Cpu {
             accumulator: CpuRegister::default(),
             x_register: CpuRegister::default(),
@@ -74,8 +73,8 @@ impl TestableCpu for Cpu {
             page_crossing: false,
             total_cycles: 0,
             instructions_executed: 0,
-            debug: debug.clone(),
-            memory: Memory::new(_rom, debug)?,
+            debug: DebugMode::No,
+            memory: Memory::new(_rom)?,
         })
     }
 

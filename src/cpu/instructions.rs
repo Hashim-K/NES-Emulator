@@ -2,7 +2,6 @@ use crate::cpu::{Cpu, StatusRegisterBit};
 use crate::MainError;
 use tudelft_nes_ppu::Ppu;
 
-use super::debug::DebugMode;
 use super::OperandValue;
 
 #[derive(Debug)]
@@ -1550,7 +1549,7 @@ impl Instruction {
     pub fn execute(&self, cpu: &mut Cpu, ppu: &mut Ppu) -> Result<(), MainError> {
         let is_write_only = self.is_write_only();
         let operand_value = cpu.get_operand_value(&self.addressing_mode, ppu, is_write_only)?;
-        self.print_instruction(&operand_value, &cpu.debug);
+        self.print_instruction(&operand_value);
         match self.instruction_type {
             InstructionType::LDA => {
                 let value = operand_value.value.expect("LDA operand value is None");
@@ -2283,7 +2282,7 @@ impl Instruction {
         )
     }
 
-    pub fn print_instruction(&self, operand_value: &OperandValue, debug: &DebugMode) {
+    pub fn print_instruction(&self, operand_value: &OperandValue) {
         let mut out_val: String = "None".to_string();
         let mut out_addr: String = "None".to_string();
 
