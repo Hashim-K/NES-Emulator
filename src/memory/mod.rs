@@ -59,7 +59,11 @@ impl Memory {
                             address as u32 + self.cartridge.chr_bank_1 as u32 * 0x1000;
                         self.cartridge.chr_data[target as usize] = value;
                     }
-                    _ => return Err(MemoryError::UnknownAddress),
+                    _ => {
+                        return Err(MemoryError::UnknownAddress(
+                            "Address out of range - write_ppu_byte".to_string(),
+                        ))
+                    }
                 }
             }
         } else {
@@ -89,7 +93,9 @@ impl Memory {
                             address as u32 + self.cartridge.chr_bank_1 as u32 * 0x1000;
                         Ok(self.cartridge.chr_data[target as usize])
                     }
-                    _ => Err(MemoryError::UnknownAddress),
+                    _ => Err(MemoryError::UnknownAddress(
+                        "Address out of range - read_ppu_byte".to_string(),
+                    )),
                 }
             }
         } else {
@@ -231,7 +237,9 @@ impl Cartridge {
         if rom_bytes[0..4] != *(b"NES\x1a") {
             log::debug!("{:?}", b"NES\x1a");
             log::debug!("{:?}", &rom_bytes[0..4]);
-            return Err(RomError::IncorrectSignature);
+            return Err(RomError::IncorrectSignature(
+                "Header signature does not match specification".to_string(),
+            ));
         }
 
         // Parse rom header
@@ -263,7 +271,9 @@ impl Cartridge {
             total_length += 512
         }
         if rom_bytes[16..].len() != total_length as usize {
-            return Err(RomError::IncorrectDataSize);
+            return Err(RomError::IncorrectDataSize(
+                "Given amount of data does not match header".to_string(),
+            ));
         }
         let prg_rom_start_index: usize = 16 + (header.trainer as usize) * 512_usize;
         let prg_rom_end_index: usize =
@@ -308,7 +318,11 @@ impl Cartridge {
                         let len = self.prg_data.len();
                         self.prg_data[(address as usize) % len] = value
                     } // prg rom
-                    _ => return Err(MemoryError::UnknownAddress),
+                    _ => {
+                        return Err(MemoryError::UnknownAddress(
+                            "Address out of range - write".to_string(),
+                        ))
+                    }
                 }
             }
             1 => {
@@ -337,13 +351,21 @@ impl Cartridge {
                                     1 => self.header.mirroring = Mirroring::SingleScreenUpper,
                                     2 => self.header.mirroring = Mirroring::Horizontal,
                                     3 => self.header.mirroring = Mirroring::Vertical,
-                                    _ => return Err(MemoryError::ShiftAddressError),
+                                    _ => {
+                                        return Err(MemoryError::ShiftAddressError(
+                                            "Match shift register & 3".to_string(),
+                                        ))
+                                    }
                                 }
                                 match (self.shift_register >> 2) & 3 {
                                     0 | 1 => self.prg_bank_mode = ProgramBankMode::Fullswitch,
                                     2 => self.prg_bank_mode = ProgramBankMode::Fixfirst,
                                     3 => self.prg_bank_mode = ProgramBankMode::Fixlast,
-                                    _ => return Err(MemoryError::ShiftAddressError),
+                                    _ => {
+                                        return Err(MemoryError::ShiftAddressError(
+                                            "Match shift register >>2 & 3".to_string(),
+                                        ))
+                                    }
                                 }
                                 if (self.shift_register >> 4) & 1 == 0 {
                                     log::debug!("changed chr bank mode to fullswitch");
@@ -365,13 +387,18 @@ impl Cartridge {
                                 log::debug!("editing prg register to {:08b}", self.shift_register);
                                 self.prg_bank = self.shift_register;
                             }
-                            _ => return Err(MemoryError::MapperAddressError(address)),
+                            _ => {
+                                return Err(MemoryError::MapperAddressError(
+                                    address,
+                                    "MMC1 address error".to_string(),
+                                ))
+                            }
                         }
                         self.shift_register = 16;
                     }
                 }
             }
-            a => Err(RomError::UnknownMapper(a))?,
+            a => Err(RomError::UnknownMapper(a, "Unknown error".to_string()))?,
         }
         Ok(())
     }
@@ -386,7 +413,7 @@ impl Cartridge {
                         Ok(self.prg_data[address as usize % len])
                     } // prg rom
                     0xff00.. => Ok(self.init_code[(address - 0xff00) as usize]),
-                    _ => Err(RomError::UnknownAddress),
+                    _ => Err(RomError::UnknownAddress("read error mapper 0".to_string())),
                 }
             }
             1 => {
@@ -400,7 +427,9 @@ impl Cartridge {
                                     address as u32 - 0x8000 + (banknr as u32 * 0x8000);
                                 Ok(self.prg_data[target as usize])
                             } // switch in 32kb blocks
-                            _ => Err(RomError::UnknownAddress),
+                            _ => Err(RomError::UnknownAddress(
+                                "read error mapper 1 fullswitch".to_string(),
+                            )),
                         }
                     }
                     ProgramBankMode::Fixfirst => {
@@ -412,7 +441,9 @@ impl Cartridge {
                                     address as u32 - 0xc000 + (self.prg_bank as u32) * 0x4000;
                                 Ok(self.prg_data[target as usize]) // make 0xc000 - 0x switchable
                             }
-                            _ => Err(RomError::UnknownAddress),
+                            _ => Err(RomError::UnknownAddress(
+                                "read error mapper 1 fixfirst".to_string(),
+                            )),
                         }
                     }
                     ProgramBankMode::Fixlast => {
@@ -429,12 +460,17 @@ impl Cartridge {
                                 Ok(self.prg_data[target as usize]) // Fix last bank to 0xc000
                             }
                             0xff00.. => Ok(self.init_code[(address - 0xff00) as usize]),
-                            _ => Err(RomError::UnknownAddress),
+                            _ => Err(RomError::UnknownAddress(
+                                "read error mapper 1 fixlast".to_string(),
+                            )),
                         }
                     }
                 }
             }
-            a => Err(RomError::UnknownMapper(a))?,
+            a => Err(RomError::UnknownMapper(
+                a,
+                "read - unknown mapper".to_string(),
+            ))?,
         }
     }
 }
