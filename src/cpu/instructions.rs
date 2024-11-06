@@ -1548,7 +1548,8 @@ impl Instruction {
     }
 
     pub fn execute(&self, cpu: &mut Cpu, ppu: &mut Ppu) -> Result<(), MainError> {
-        let operand_value = cpu.get_operand_value(&self.addressing_mode, ppu)?;
+        let is_write_only = self.is_write_only();
+        let operand_value = cpu.get_operand_value(&self.addressing_mode, ppu, is_write_only)?;
         self.print_instruction(&operand_value, &cpu.debug);
         match self.instruction_type {
             InstructionType::LDA => {
@@ -2265,6 +2266,20 @@ impl Instruction {
                 | InstructionType::RLA
                 | InstructionType::SRE
                 | InstructionType::RRA
+        )
+    }
+
+    fn is_write_only(&self) -> bool {
+        matches!(
+            self.instruction_type,
+            InstructionType::STX
+                | InstructionType::STA
+                | InstructionType::STY
+                | InstructionType::SAX
+                | InstructionType::SHA
+                | InstructionType::SHX
+                | InstructionType::SHY
+                | InstructionType::TAS
         )
     }
 

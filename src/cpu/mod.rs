@@ -297,6 +297,7 @@ impl Cpu {
         &mut self,
         addressing_mode: &AddressingMode,
         ppu: &mut Ppu,
+        write_only: bool,
     ) -> Result<OperandValue, MainError> {
         let mut hh: u8 = 0;
         let mut ll: u8 = 0;
@@ -325,10 +326,16 @@ impl Cpu {
             // abs	        absolute	            OPC $LLHH	    operand is address $HHLL *
             AddressingMode::Absolute => {
                 let address: u16 = (hh as u16) << 8 | ll as u16;
-                Ok(OperandValue {
-                    address: Some(address),
-                    value: Some(self.memory.read(address, self, ppu)?),
-                })
+                match write_only {
+                    true => Ok(OperandValue {
+                        address: Some(address),
+                        value: None,
+                    }),
+                    false => Ok(OperandValue {
+                        address: Some(address),
+                        value: Some(self.memory.read(address, self, ppu)?),
+                    }),
+                }
             }
 
             // abs,X	    absolute, X-indexed	    OPC $LLHH,X	    operand is address; effective address is address incremented by X with carry **
