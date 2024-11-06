@@ -127,7 +127,7 @@ impl Memory {
                 ppu.write_oam_dma(self.oamdata);
             }
             0x4015..0x4016 => {}
-            0x4016 => self.controller.borrow_mut().write(value, &ppu), // NES APU and I/O registers
+            0x4016 => self.controller.borrow_mut().write(value, ppu), // NES APU and I/O registers
             0x4017..0x4020 => {} // TODO: APU and I/O functionality that is normally disabled
             0x4020.. => return self.cartridge.write(address, value), // Cartridge memory
         };
@@ -336,68 +336,63 @@ impl Cartridge {
                         }
                         _ => return Ok(()),
                     }
+                } else if (self.shift_register & 1) != 1 {
+                    self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
                 } else {
-                    if (self.shift_register & 1) != 1 {
-                        self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
-                    } else {
-                        self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
-                        match address {
-                            0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
-                            0x8000..0xa000 => {
-                                log::debug!(
-                                    "editing control register to {:08b}",
-                                    self.shift_register
-                                );
-                                match self.shift_register & 3 {
-                                    0 => self.header.mirroring = Mirroring::SingleScreenLower,
-                                    1 => self.header.mirroring = Mirroring::SingleScreenUpper,
-                                    2 => self.header.mirroring = Mirroring::Horizontal,
-                                    3 => self.header.mirroring = Mirroring::Vertical,
-                                    _ => {
-                                        return Err(MemoryError::ShiftAddressError(
-                                            "Match shift register & 3".to_string(),
-                                        ))
-                                    }
-                                }
-                                match (self.shift_register >> 2) & 3 {
-                                    0 | 1 => self.prg_bank_mode = ProgramBankMode::Fullswitch,
-                                    2 => self.prg_bank_mode = ProgramBankMode::Fixfirst,
-                                    3 => self.prg_bank_mode = ProgramBankMode::Fixlast,
-                                    _ => {
-                                        return Err(MemoryError::ShiftAddressError(
-                                            "Match shift register >>2 & 3".to_string(),
-                                        ))
-                                    }
-                                }
-                                if (self.shift_register >> 4) & 1 == 0 {
-                                    log::debug!("changed chr bank mode to fullswitch");
-                                    self.chr_bank_mode = CharacterBankMode::Fullswitch
-                                } else {
-                                    log::debug!("changed chr bank mode to halfswitch");
-                                    self.chr_bank_mode = CharacterBankMode::Halfswitch
+                    self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
+                    match address {
+                        0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
+                        0x8000..0xa000 => {
+                            log::debug!("editing control register to {:08b}", self.shift_register);
+                            match self.shift_register & 3 {
+                                0 => self.header.mirroring = Mirroring::SingleScreenLower,
+                                1 => self.header.mirroring = Mirroring::SingleScreenUpper,
+                                2 => self.header.mirroring = Mirroring::Horizontal,
+                                3 => self.header.mirroring = Mirroring::Vertical,
+                                _ => {
+                                    return Err(MemoryError::ShiftAddressError(
+                                        "Match shift register & 3".to_string(),
+                                    ))
                                 }
                             }
-                            0xa000..0xc000 => {
-                                log::debug!("editing chr0 register to {:08b}", self.shift_register);
-                                self.chr_bank_0 = self.shift_register;
+                            match (self.shift_register >> 2) & 3 {
+                                0 | 1 => self.prg_bank_mode = ProgramBankMode::Fullswitch,
+                                2 => self.prg_bank_mode = ProgramBankMode::Fixfirst,
+                                3 => self.prg_bank_mode = ProgramBankMode::Fixlast,
+                                _ => {
+                                    return Err(MemoryError::ShiftAddressError(
+                                        "Match shift register >>2 & 3".to_string(),
+                                    ))
+                                }
                             }
-                            0xc000..0xe000 => {
-                                log::debug!("editing chr1 register to {:08b}", self.shift_register);
-                                self.chr_bank_1 = self.shift_register;
-                            }
-                            0xe000.. => {
-                                log::debug!("editing prg register to {:08b}", self.shift_register);
-                                self.prg_bank = self.shift_register;
-                            }
-                            _ => {
-                                return Err(MemoryError::MapperAddressError(
-                                    address,
-                                    "MMC1 address error".to_string(),
-                                ))
+                            if (self.shift_register >> 4) & 1 == 0 {
+                                log::debug!("changed chr bank mode to fullswitch");
+                                self.chr_bank_mode = CharacterBankMode::Fullswitch
+                            } else {
+                                log::debug!("changed chr bank mode to halfswitch");
+                                self.chr_bank_mode = CharacterBankMode::Halfswitch
                             }
                         }
-                        self.shift_register = 16;
+                        0xa000..0xc000 => {
+                            log::debug!("editing chr0 register to {:08b}", self.shift_register);
+                            self.chr_bank_0 = self.shift_register;
+                        }
+                        0xc000..0xe000 => {
+                            log::debug!("editing chr1 register to {:08b}", self.shift_register);
+                            self.chr_bank_1 = self.shift_register;
+                        }
+                        0xe000.. => {
+                            log::debug!("editing prg register to {:08b}", self.shift_register);
+                            self.prg_bank = self.shift_register;
+                        }
+                        _ => {
+                            return Err(MemoryError::MapperAddressError(
+                                address,
+                                "MMC1 address error".to_string(),
+                            ))
+                        }
                     }
+                    self.shift_register = 16;
                 }
             }
             a => Err(RomError::UnknownMapper(a, "Unknown error".to_string()))?,
