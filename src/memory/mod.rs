@@ -104,13 +104,8 @@ impl Memory {
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {
+                log::debug!("register written to value: {}", value);
                 let _register = address_to_ppu_register(address);
-                if _register == PpuRegister::Address {
-                    self.ppuaddress = value as u32;
-                }
-                if _register == PpuRegister::Data {
-                    self.ppuaddress += 1;
-                }
                 ppu.write_ppu_register(_register, value);
                 log::debug!("ppu reg address: 0x{:4X}", self.ppuaddress);
                 log::debug!("writing {:?} to: {:?}", value, _register);
@@ -305,7 +300,10 @@ impl Cartridge {
         match self.header.mapper_number {
             0 => {
                 match address {
-                    0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
+                    0x6000..0x8000 => {
+                        let ram_address: u16 = (address - 0x6000) & 0x7ff;
+                        self.pgr_ram[ram_address as usize] = value; // PGR RAM
+                    }
                     0x8000.. => {
                         let len = self.prg_data.len();
                         self.prg_data[(address as usize) % len] = value
@@ -316,12 +314,12 @@ impl Cartridge {
             1 => {
                 if (value & 0b10000000) == 128 {
                     match address {
-                        ..0x8000 => {}
                         0x8000.. => {
                             self.header.mirroring = Mirroring::SingleScreenLower;
                             self.prg_bank_mode = ProgramBankMode::Fixlast;
                             self.chr_bank_mode = CharacterBankMode::Fullswitch;
                         }
+                        _ => return Ok(()),
                     }
                 } else {
                     if (self.shift_register & 1) != 1 {
@@ -420,8 +418,11 @@ impl Cartridge {
                     ProgramBankMode::Fixlast => {
                         match address {
                             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
-                            0x8000..0xc000 => Ok(self.prg_data
-                                [(address - 0x8000 + (self.prg_bank as u16) * 16384) as usize]), // make 0x8000 - 0xc000 switchable
+                            0x8000..0xc000 => {
+                                let target: u32 =
+                                    address as u32 - 0x8000 + (self.prg_bank as u32) * 16384;
+                                Ok(self.prg_data[target as usize]) // make 0x8000 - 0xc000 switchable
+                            }
                             0xc000..0xff00 => {
                                 let target: u32 = address as u32 - 0xc000
                                     + ((self.header.program_rom_size - 1) as u32) * 16384;
