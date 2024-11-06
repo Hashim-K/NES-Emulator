@@ -149,7 +149,7 @@ impl CpuTemplate for Cpu {
                     //     .set_bit(StatusRegisterBit::InterruptBit, true);
                 }
                 InterruptState::IRQ => {
-                    todo!("Add interface for IRQ")
+                    warn!("Add interface for IRQ")
                 }
                 InterruptState::NormalOperation => {
                     log::debug!("\n\n---------------");
@@ -328,7 +328,7 @@ impl Cpu {
                 hh = self.read_next_value(ppu)?;
                 log::debug!("ll: {:02X} hh: {:02X}", ll, hh);
             }
-            _ => panic!("Unknown addressing mode"),
+            _ => warn!("Unknown addressing mode"),
         }
         match addressing_mode {
             // A	        Accumulator	            OPC A	        operand is AC (implied single byte instruction)
