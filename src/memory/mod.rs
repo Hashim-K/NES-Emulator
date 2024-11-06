@@ -430,12 +430,13 @@ impl Cartridge {
                         }
                     }
                     ProgramBankMode::Fixfirst => {
+                        let banknr = self.prg_bank & 0x0F;
                         match address {
                             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
                             0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000) as usize]), // fix first bank to 0x8000
                             0xc000.. => {
                                 let target: u32 =
-                                    address as u32 - 0xc000 + (self.prg_bank as u32) * 0x4000;
+                                    address as u32 - 0xc000 + (banknr as u32) * 0x4000;
                                 Ok(self.prg_data[target as usize]) // make 0xc000 - 0x switchable
                             }
                             _ => Err(RomError::UnknownAddress(
@@ -444,11 +445,11 @@ impl Cartridge {
                         }
                     }
                     ProgramBankMode::Fixlast => {
+                        let banknr = self.prg_bank & 0x0F;
                         match address {
                             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
                             0x8000..0xc000 => {
-                                let target: u32 =
-                                    address as u32 - 0x8000 + (self.prg_bank as u32) * 16384;
+                                let target: u32 = address as u32 - 0x8000 + (banknr as u32) * 16384;
                                 Ok(self.prg_data[target as usize]) // make 0x8000 - 0xc000 switchable
                             }
                             0xc000..0xff00 => {
