@@ -119,9 +119,9 @@ impl CpuTemplate for Cpu {
 
             match self.interrupt_state {
                 InterruptState::Uninitialized => {
-                    self.debug.info_log("Initializing CPU".to_string());
+                    log::debug!("Initializing CPU");
                     self.initialize_cpu(ppu)?;
-                    self.debug.info_log("CPU initialized\n\n".to_string());
+                    log::debug!("CPU initialized\n\n");
                     self.print_cpu_state_header();
                     self.interrupt_state = InterruptState::Booting;
                 }
@@ -131,7 +131,7 @@ impl CpuTemplate for Cpu {
                     }
                 }
                 InterruptState::NMI => {
-                    self.debug.info_log("Executing NMI".to_string());
+                    log::debug!("Executing NMI");
                     self.push_pc_and_status_on_stack(ppu)?;
                     let nmi_lobyte = self.memory.read(0xFFFA, self, ppu)?;
                     let nmi_hibyte = self.memory.read(0xFFFB, self, ppu)?;
@@ -149,19 +149,19 @@ impl CpuTemplate for Cpu {
                     todo!("Add interface for IRQ")
                 }
                 InterruptState::NormalOperation => {
-                    self.debug.info_log("\n\n---------------".to_string());
+                    log::debug!("\n\n---------------");
                     self.debug(self.memory.read(self.program_counter.get(), self, ppu)?);
                     let opcode = self.read_next_value(ppu)?;
-                    self.debug.info_log(format!("Opcode: {:02X}", opcode));
+                    log::debug!("Opcode: {:02X}", opcode);
                     let instruction: Instruction =
                         Instruction::decode(opcode).expect("Failed decoding opcode");
                     instruction.execute(self, ppu)?;
 
                     self.instruction_cycle_count = Instruction::get_instruction_duration(opcode)?;
-                    self.debug.info_log(format!(
+                    log::debug!(
                         "Instruction cycle count set to {}",
                         self.instruction_cycle_count,
-                    ));
+                    );
 
                     if !instruction.is_rmw() && self.page_crossing {
                         self.instruction_cycle_count += 1;
@@ -247,38 +247,38 @@ impl Cpu {
     }
 
     fn debug(&self, opcode: u8) {
-        if let Ok(instruction) = Instruction::decode(opcode) {
-            let raw_bytes = self.addressing_mode_get_bytes(&instruction.addressing_mode);
-            let bytes = raw_bytes
-                .iter()
-                .map(|arg| format!("{:02X}", arg))
-                .collect::<Vec<_>>()
-                .join(" ");
+        if self.debug == DebugMode::Emu {
+            if let Ok(instruction) = Instruction::decode(opcode) {
+                let raw_bytes = self.addressing_mode_get_bytes(&instruction.addressing_mode);
+                let bytes = raw_bytes
+                    .iter()
+                    .map(|arg| format!("{:02X}", arg))
+                    .collect::<Vec<_>>()
+                    .join(" ");
 
-            self.debug.emu_log(format!(
-                "{:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{}",
-                self.program_counter.get(),
-                bytes,
-                instruction.instruction_type,
-                self.accumulator.get(),
-                self.x_register.get(),
-                self.y_register.get(),
-                self.status_register.get() & !(1 << 4),
-                self.stack_pointer.get(),
-                self.total_cycles,
-            ));
+                println!(
+                    "{:04X}  {:8}  {:32?} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{}",
+                    self.program_counter.get(),
+                    bytes,
+                    instruction.instruction_type,
+                    self.accumulator.get(),
+                    self.x_register.get(),
+                    self.y_register.get(),
+                    self.status_register.get() & !(1 << 4),
+                    self.stack_pointer.get(),
+                    self.total_cycles,
+                );
+            }
         }
     }
 
     fn print_cpu_state_header(&self) {
-        self.debug
-            .info_log("A |X |Y |SP |PC   |T/MT |NV-BDIZC |Instr# |CYCLE".to_string());
-        self.debug
-            .info_log("----------------------------------------".to_string());
+        log::debug!("A |X |Y |SP |PC   |T/MT |NV-BDIZC |Instr# |CYCLE");
+        log::debug!("----------------------------------------");
     }
 
     fn print_cpu_state(&self) {
-        self.debug.info_log(format!(
+        log::debug!(
             "{:02X}|{:02X}|{:02X}|{:02X} |{:04X} |{}/{}  |{:08b} |{}      |{}",
             self.accumulator.get(),
             self.x_register.get(),
@@ -290,7 +290,7 @@ impl Cpu {
             self.status_register.get(),
             self.instructions_executed,
             self.total_cycles,
-        ));
+        );
     }
 
     fn get_operand_value(
@@ -306,13 +306,12 @@ impl Cpu {
             1 => (),
             2 => {
                 ll = self.read_next_value(ppu)?;
-                self.debug.info_log(format!("ll: {:02X}", ll));
+                log::debug!("ll: {:02X}", ll);
             }
             3 => {
                 ll = self.read_next_value(ppu)?;
                 hh = self.read_next_value(ppu)?;
-                self.debug
-                    .info_log(format!("ll: {:02X} hh: {:02X}", ll, hh));
+                log::debug!("ll: {:02X} hh: {:02X}", ll, hh);
             }
             _ => panic!("Unknown addressing mode"),
         }
@@ -429,12 +428,12 @@ impl Cpu {
                     .get()
                     .wrapping_add((ll & 0b0111_1111) as u16)
                     .wrapping_sub((ll & 0b1000_0000) as u16);
-                self.debug.info_log(format!(
+                log::debug!(
                     "Old PC: {:04X} Offset:{} New PC: {:04X}",
                     self.program_counter.get(),
                     ll as i8,
                     new_pc,
-                ));
+                );
                 if ((new_pc & 0x0100) ^ (self.program_counter.get() & 0x0100)) == 0x0100 {
                     self.page_crossing = true;
                 }
@@ -475,12 +474,12 @@ impl Cpu {
 
     fn read_next_value(&mut self, ppu: &mut Ppu) -> Result<u8, MainError> {
         let value = self.memory.read(self.program_counter.get(), self, ppu)?;
-        self.debug.info_log(format!(
+        log::debug!(
             "PC: {:04X} Value: {:02X} Next PC: {:04X}",
             self.program_counter.get(),
             value,
             self.program_counter.get() + 1
-        ));
+        );
         self.program_counter.increment();
         Ok(value)
     }
@@ -515,15 +514,12 @@ impl Cpu {
         let return_value: InterruptState;
         if self.nmi_line_triggered {
             return_value = InterruptState::NMI;
-            self.debug
-                .info_log("Interrupt state NMI polled".to_string());
+            log::debug!("Interrupt state NMI polled");
         } else if self.irq_line_triggered {
             return_value = InterruptState::IRQ;
-            self.debug
-                .info_log("Interrupt state IRQ polled".to_string());
+            log::debug!("Interrupt state IRQ polled");
         } else {
             return_value = InterruptState::NormalOperation;
-            // self.debug.info_log("Interrupt state NormalOperation polled");
         }
         self.irq_line_triggered = false;
         self.nmi_line_triggered = false;
@@ -532,12 +528,11 @@ impl Cpu {
 
     fn initialize_cpu(&mut self, ppu: &mut Ppu) -> Result<(), MemoryError> {
         let lobyte = self.memory.read(0xFFFC, self, ppu)?;
-        self.debug.info_log(format!("lobyte: {:02X}", lobyte));
+        log::debug!("lobyte: {:02X}", lobyte);
         let hibyte = self.memory.read(0xFFFD, self, ppu)?;
-        self.debug.info_log(format!("hibyte: {:02X}", hibyte));
+        log::debug!("hibyte: {:02X}", hibyte);
         self.program_counter.set_lobyte(lobyte);
         self.program_counter.set_hibyte(hibyte);
-        // self.debug.info_log(format!("program counter set to {}", self.program_counter.get()));
         self.stack_pointer.set(0xFD);
         self.status_register
             .set_bit(StatusRegisterBit::Interrupt, true);
