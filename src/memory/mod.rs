@@ -27,7 +27,6 @@ pub struct Memory {
     cartridge: Cartridge,
     controller: RefCell<Controller>,
     debug: DebugMode,
-    ppuaddress: u32,
     oamdata: [u8; 256],
 }
 
@@ -38,7 +37,6 @@ impl Memory {
             internal_ram: [0; 2048],
             controller: RefCell::new(Controller::new()),
             debug: debugmode,
-            ppuaddress: 0,
             oamdata: [0; 256],
         })
     }
@@ -112,19 +110,12 @@ impl Memory {
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {
-                self.debug.info_log(format!("register written to value: {}", value));
+                self.debug
+                    .info_log(format!("register written to value: {}", value));
                 let _register = address_to_ppu_register(address);
-                if _register == PpuRegister::Address {
-                    self.ppuaddress = value as u32;
-                }
-                if _register == PpuRegister::Data {
-                    self.ppuaddress += 1;
-                }
                 ppu.write_ppu_register(_register, value);
                 self.debug
-                    .emu_log(format!("ppu reg address: 0x{:4X}", self.ppuaddress));
-                self.debug
-                    .emu_log(format!("writing {:?} to: {:?}", value, _register));
+                    .info_log(format!("writing {:?} to: {:?}", value, _register));
             } // NES PPU registers
             0x4000..0x4014 => {} // TODO: NES APU and I/O registers
             0x4014 => {
@@ -133,7 +124,7 @@ impl Memory {
                         .read_cpu_mem(((value as u16) << 8) + i as u16)
                         .expect("invalid oam read");
                 }
-                self.debug.emu_log(format!("writing oam"));
+                self.debug.info_log(format!("writing oam"));
                 ppu.write_oam_dma(self.oamdata);
             }
             0x4015..0x4016 => {}
@@ -323,7 +314,10 @@ impl Cartridge {
         match self.header.mapper_number {
             0 => {
                 match address {
-                    0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
+                    0x6000..0x8000 => {
+                        let ram_address: u16 = (address - 0x6000) & 0x7ff;
+                        self.pgr_ram[ram_address as usize] = value; // PGR RAM
+                    }
                     0x8000..0xc000 => self.prg_data[(address - 0x8000) as usize] = value, // first 16 KiB of prg rom
                     0xc000.. => self.prg_data[(address - 0xc000 + 0x4000) as usize] = value, // last 16 KiB of prg rom
                     _ => return Err(MemoryError::UnknownAddress),
@@ -332,11 +326,10 @@ impl Cartridge {
             1 => {
                 if (value & 0b10000000) == 128 {
                     match address {
-
-                        0x8000.. =>{
-                        self.header.mirroring = Mirroring::SingleScreenLower;
-                        self.prg_bank_mode = ProgramBankMode::Fixlast;
-                        self.chr_bank_mode = CharacterBankMode::Fullswitch;
+                        0x8000.. => {
+                            self.header.mirroring = Mirroring::SingleScreenLower;
+                            self.prg_bank_mode = ProgramBankMode::Fixlast;
+                            self.chr_bank_mode = CharacterBankMode::Fullswitch;
                         }
                         _ => return Ok(()),
                     }
@@ -347,7 +340,10 @@ impl Cartridge {
                         self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
                         match address {
                             0x8000..0xa000 => {
-                                self.debug.info_log(format!("editing control register to {:08b}", self.shift_register));
+                                self.debug.info_log(format!(
+                                    "editing control register to {:08b}",
+                                    self.shift_register
+                                ));
                                 match self.shift_register & 3 {
                                     0 => self.header.mirroring = Mirroring::SingleScreenLower,
                                     1 => self.header.mirroring = Mirroring::SingleScreenUpper,
@@ -362,23 +358,34 @@ impl Cartridge {
                                     _ => return Err(MemoryError::ShiftAddressError),
                                 }
                                 if (self.shift_register >> 4) & 1 == 0 {
-                                    self.debug.info_log(format!("changed chr bank mode to fullswitch"));
+                                    self.debug
+                                        .info_log(format!("changed chr bank mode to fullswitch"));
                                     self.chr_bank_mode = CharacterBankMode::Fullswitch
                                 } else {
-                                    self.debug.info_log(format!("changed chr bank mode to halfswitch"));
+                                    self.debug
+                                        .info_log(format!("changed chr bank mode to halfswitch"));
                                     self.chr_bank_mode = CharacterBankMode::Halfswitch
                                 }
                             }
                             0xa000..0xc000 => {
-                                self.debug.info_log(format!("editing chr0 register to {:08b}", self.shift_register));
+                                self.debug.info_log(format!(
+                                    "editing chr0 register to {:08b}",
+                                    self.shift_register
+                                ));
                                 self.chr_bank_0 = self.shift_register;
                             }
                             0xc000..0xe000 => {
-                                self.debug.info_log(format!("editing chr1 register to {:08b}", self.shift_register));
+                                self.debug.info_log(format!(
+                                    "editing chr1 register to {:08b}",
+                                    self.shift_register
+                                ));
                                 self.chr_bank_1 = self.shift_register;
                             }
                             0xe000.. => {
-                                self.debug.info_log(format!("editing prg register to {:08b}", self.shift_register));
+                                self.debug.info_log(format!(
+                                    "editing prg register to {:08b}",
+                                    self.shift_register
+                                ));
                                 self.prg_bank = self.shift_register;
                             }
                             _ => return Err(MemoryError::MapperAddressError(address)),
@@ -432,8 +439,11 @@ impl Cartridge {
                     ProgramBankMode::Fixlast => {
                         match address {
                             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
-                            0x8000..0xc000 => Ok(self.prg_data
-                                [(address - 0x8000 + (self.prg_bank as u16) * 16384) as usize]), // make 0x8000 - 0xc000 switchable
+                            0x8000..0xc000 => {
+                                let target: u32 =
+                                    address as u32 - 0x8000 + (self.prg_bank as u32) * 16384;
+                                Ok(self.prg_data[target as usize]) // make 0x8000 - 0xc000 switchable
+                            }
                             0xc000..0xff00 => {
                                 let target: u32 = address as u32 - 0xc000
                                     + ((self.header.program_rom_size - 1) as u32) * 16384;
