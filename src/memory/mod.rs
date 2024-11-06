@@ -416,7 +416,7 @@ impl Cartridge {
             1 => {
                 match self.prg_bank_mode {
                     ProgramBankMode::Fullswitch => {
-                        let banknr = self.prg_bank & 0x0F;
+                        let banknr = (self.prg_bank & 0x0F) >> 1;
                         match address {
                             0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
                             0x8000.. => {
