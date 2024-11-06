@@ -262,9 +262,11 @@ impl Cartridge {
     fn new(rom_bytes: &[u8]) -> Result<Cartridge, RomError> {
         let header = Self::parse_header(rom_bytes)?;
 
+        // generate warning if mapper is not implemented
         if header.mapper_number > 1 {
             warn!("Mapper {} not supported", header.mapper_number);
         }
+        // check if the total length of the given .nes file actually corresponds to the header
         let mut total_length: u32 =
             header.charactor_memory_size as u32 * 8192 + header.program_rom_size as u32 * 16384;
         if header.trainer {
@@ -275,6 +277,7 @@ impl Cartridge {
                 "Given amount of data does not match header".to_string(),
             ));
         }
+        // create start and end index to find the program rom from within the .nes file
         let prg_rom_start_index: usize = 16 + (header.trainer as usize) * 512_usize;
         let prg_rom_end_index: usize =
             16 + (header.trainer as usize) * 512 + (header.program_rom_size as usize) * 0x4000;
@@ -286,6 +289,7 @@ impl Cartridge {
             let chr_ram: [u8; 8192] = [0; 8192];
             cartridge_chr_rom.append(&mut chr_ram.to_vec());
         }
+        // copy the last 256 bytes of the program rom into a seperate vector to be able to always access these bytes
         let cartridge_init_code: Vec<u8> = rom_bytes[(prg_rom_end_index - 256)..].to_vec();
         log::debug!("prg ram: {}", header.peristent_memory);
         Ok(Cartridge {
@@ -298,17 +302,16 @@ impl Cartridge {
             shift_register: 16,
             prg_bank_mode: ProgramBankMode::Fixlast,
             chr_bank_mode: CharacterBankMode::Fullswitch,
-            // pgr ram needs to mirror itself to fill 8kib
             pgr_ram: [0; 8192],
             chr_ram: [0; 8192],
             init_code: cartridge_init_code,
         })
-        // TODO: implement error handling
     }
 
     fn write(&mut self, address: u16, value: u8) -> Result<(), MemoryError> {
         match self.header.mapper_number {
             0 => {
+                // memory mapping for the NROM mapper
                 match address {
                     0x6000..0x8000 => {
                         let ram_address: u16 = (address - 0x6000) & 0x7ff;
@@ -326,6 +329,7 @@ impl Cartridge {
                 }
             }
             1 => {
+                // check if the given command could be a reset for the mmc1 mapper
                 if (value & 0b10000000) == 128 {
                     match address {
                         0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
@@ -336,14 +340,17 @@ impl Cartridge {
                         }
                         _ => return Ok(()),
                     }
+                    // check if the shift register is full or not
                 } else if (self.shift_register & 1) != 1 {
                     self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
                 } else {
+                    // if the shift register is full shift in the fifth bit and write it to the appropriate address
                     self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
                     match address {
                         0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
                         0x8000..0xa000 => {
                             log::debug!("editing control register to {:08b}", self.shift_register);
+                            // set mirroring
                             match self.shift_register & 3 {
                                 0 => self.header.mirroring = Mirroring::SingleScreenLower,
                                 1 => self.header.mirroring = Mirroring::SingleScreenUpper,
@@ -355,6 +362,7 @@ impl Cartridge {
                                     ))
                                 }
                             }
+                            // set program bank shifting mode
                             match (self.shift_register >> 2) & 3 {
                                 0 | 1 => self.prg_bank_mode = ProgramBankMode::Fullswitch,
                                 2 => self.prg_bank_mode = ProgramBankMode::Fixfirst,
@@ -365,6 +373,7 @@ impl Cartridge {
                                     ))
                                 }
                             }
+                            // set character bank mode
                             if (self.shift_register >> 4) & 1 == 0 {
                                 log::debug!("changed chr bank mode to fullswitch");
                                 self.chr_bank_mode = CharacterBankMode::Fullswitch
