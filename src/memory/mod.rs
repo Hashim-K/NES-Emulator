@@ -189,12 +189,11 @@ impl Memory {
             ..0x2000 => Ok(self.internal_ram[(address & 0x07ff) as usize]),
             // NES PPU registers
             0x2000..0x4000 => self.read_ppu_byte(address - 0x2000),
-            //panic!("You have to use the read function if you want to access the ppu memory")
-            //}
             // Open bus, undefined behavior
             0x4000..0x4016 => Ok(0),
             0x4016 => {
-                panic!("You have to use the read function if you want to access the controller")
+                warn!("You have to use the read function if you want to access the controller");
+                Ok(0)
             }
             0x4017 => {
                 // TODO: impelement controller 2
