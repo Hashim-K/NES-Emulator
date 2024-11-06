@@ -43,7 +43,7 @@ pub struct Cpu {
     debug: DebugMode,
 }
 
-/// Trait for making the CPU testable in autoated tests
+/// Trait for making the CPU testable in automated tests
 impl TestableCpu for Cpu {
     type GetCpuError = MyGetCpuError;
 
