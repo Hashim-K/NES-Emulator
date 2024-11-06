@@ -328,6 +328,7 @@ impl Cartridge {
             1 => {
                 if (value & 0b10000000) == 128 {
                     match address {
+                        0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
                         0x8000.. => {
                             self.header.mirroring = Mirroring::SingleScreenLower;
                             self.prg_bank_mode = ProgramBankMode::Fixlast;
@@ -341,6 +342,7 @@ impl Cartridge {
                     } else {
                         self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
                         match address {
+                            0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
                             0x8000..0xa000 => {
                                 log::debug!(
                                     "editing control register to {:08b}",
