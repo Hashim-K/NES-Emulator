@@ -1,6 +1,7 @@
 use crate::cpu::Cpu;
 use crate::error::{MemoryError, RomError};
 use controller::Controller;
+use log::warn;
 use std::cell::RefCell;
 use tudelft_nes_ppu::{Mirroring, Ppu, PpuRegister};
 
@@ -257,6 +258,10 @@ impl Cartridge {
 
     fn new(rom_bytes: &[u8]) -> Result<Cartridge, RomError> {
         let header = Self::parse_header(rom_bytes)?;
+
+        if header.mapper_number > 1 {
+            warn!("Mapper {} not supported", header.mapper_number);
+        }
         let mut total_length: u32 =
             header.charactor_memory_size as u32 * 8192 + header.program_rom_size as u32 * 16384;
         if header.trainer {
