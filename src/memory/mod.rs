@@ -103,8 +103,7 @@ impl Memory {
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {
-                self.debug
-                    .info_log(format!("register written to value: {}", value));
+                log::debug!("register written to value: {}", value);
                 let _register = address_to_ppu_register(address);
                 ppu.write_ppu_register(_register, value);
                 log::debug!("ppu reg address: 0x{:4X}", self.ppuaddress);
