@@ -8,8 +8,9 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn write(&mut self, byte: u8) {
+    pub fn write(&mut self, byte: u8, ppu: &Ppu) {
         self.strobe = (byte & 0b1) == 1;
+        self.clock_pulse(ppu);
     }
 
     pub fn clock_pulse(&mut self, ppu: &Ppu) {

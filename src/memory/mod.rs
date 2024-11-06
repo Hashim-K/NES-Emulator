@@ -136,7 +136,7 @@ impl Memory {
                 ppu.write_oam_dma(self.oamdata);
             }
             0x4015..0x4016 => {}
-            0x4016 => self.controller.borrow_mut().write(value), // NES APU and I/O registers
+            0x4016 => self.controller.borrow_mut().write(value, &ppu), // NES APU and I/O registers
             0x4017..0x4020 => {} // TODO: APU and I/O functionality that is normally disabled
             0x4020.. => return self.cartridge.write(address, value), // Cartridge memory
         };
