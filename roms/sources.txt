@@ -1,1 +1,0 @@
-cpu_dummy_reads.nes: https://github.com/christopherpow/nes-test-roms/tree/master/cpu_dummy_reads
