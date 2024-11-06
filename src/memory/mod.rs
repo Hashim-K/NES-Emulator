@@ -281,8 +281,7 @@ impl Cartridge {
         let prg_rom_start_index: usize = 16 + (header.trainer as usize) * 512_usize;
         let prg_rom_end_index: usize =
             16 + (header.trainer as usize) * 512 + (header.program_rom_size as usize) * 0x4000;
-        let mut cartridge_prg_rom: Vec<u8> =
-            rom_bytes[prg_rom_start_index..prg_rom_end_index].to_vec();
+        let cartridge_prg_rom: Vec<u8> = rom_bytes[prg_rom_start_index..prg_rom_end_index].to_vec();
         let mut cartridge_chr_rom: Vec<u8> = vec![];
         if header.charactor_memory_size != 0 {
             cartridge_chr_rom.append(&mut rom_bytes[prg_rom_end_index..].to_vec());
@@ -291,13 +290,7 @@ impl Cartridge {
             cartridge_chr_rom.append(&mut chr_ram.to_vec());
         }
         let cartridge_init_code: Vec<u8> = rom_bytes[(prg_rom_end_index - 256)..].to_vec();
-        if header.charactor_memory_size == 1 {
-            cartridge_prg_rom = [
-                cartridge_prg_rom,
-                rom_bytes[prg_rom_start_index..prg_rom_end_index].to_vec(),
-            ]
-            .concat();
-        }
+        println!("Program prg rom {:x}", cartridge_prg_rom.len());
         debug.info_log(format!("prg ram: {}", header.peristent_memory));
         Ok(Cartridge {
             header,
@@ -323,8 +316,10 @@ impl Cartridge {
             0 => {
                 match address {
                     0x6000..0x8000 => self.pgr_ram[(address - 0x6000) as usize] = value, // PGR RAM
-                    0x8000..0xc000 => self.prg_data[(address - 0x8000) as usize] = value, // first 16 KiB of prg rom
-                    0xc000.. => self.prg_data[(address - 0xc000 + 0x4000) as usize] = value, // last 16 KiB of prg rom
+                    0x8000.. => {
+                        let len = self.prg_data.len();
+                        self.prg_data[(address as usize) % len] = value
+                    } // prg rom
                     _ => return Err(MemoryError::UnknownAddress),
                 }
             }
@@ -409,8 +404,10 @@ impl Cartridge {
             0 => {
                 match address {
                     0x6000..0x8000 => Ok(self.pgr_ram[(address - 0x6000) as usize]), // PGR RAM
-                    0x8000..0xc000 => Ok(self.prg_data[(address - 0x8000) as usize]), // first 16 KiB of prg rom
-                    0xc000..0xff00 => Ok(self.prg_data[(address - 0xc000 + 0x4000) as usize]), // last 16 KiB of prg rom
+                    0x8000..0xff00 => {
+                        let len = self.prg_data.len();
+                        Ok(self.prg_data[address as usize % len])
+                    } // prg rom
                     0xff00.. => Ok(self.init_code[(address - 0xff00) as usize]),
                     _ => Err(RomError::UnknownAddress),
                 }
