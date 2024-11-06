@@ -1,4 +1,3 @@
-use crate::cpu::debug::DebugMode;
 use crate::cpu::Cpu;
 use crate::error::{MemoryError, RomError};
 use controller::Controller;
@@ -26,18 +25,16 @@ pub struct Memory {
     internal_ram: [u8; 2048],
     cartridge: Cartridge,
     controller: RefCell<Controller>,
-    debug: DebugMode,
     ppuaddress: u32,
     oamdata: [u8; 256],
 }
 
 impl Memory {
-    pub fn new(rom_bytes: &[u8], debugmode: DebugMode) -> Result<Memory, RomError> {
+    pub fn new(rom_bytes: &[u8]) -> Result<Memory, RomError> {
         Ok(Memory {
-            cartridge: Cartridge::new(rom_bytes, debugmode.clone())?,
+            cartridge: Cartridge::new(rom_bytes)?,
             internal_ram: [0; 2048],
             controller: RefCell::new(Controller::new()),
-            debug: debugmode,
             ppuaddress: 0,
             oamdata: [0; 256],
         })
@@ -66,8 +63,7 @@ impl Memory {
             }
         } else {
             if address > 0x2000 {
-                self.debug
-                    .info_log(format!("address too large: {:4X}", address));
+                log::debug!("address too large: {:4X}", address);
             }
             self.cartridge.chr_ram[address as usize] = value;
         }
@@ -97,18 +93,13 @@ impl Memory {
             }
         } else {
             if address > 0x2000 {
-                self.debug
-                    .info_log(format!("address too large: {:4X}", address));
+                log::debug!("address too large: {:4X}", address);
             }
             Ok(self.cartridge.chr_ram[address as usize])
         }
     }
 
     pub fn write(&mut self, address: u16, value: u8, ppu: &mut Ppu) -> Result<(), MemoryError> {
-        //self.debug.info_log(format!(
-        //    "Writing value 0x{:02X} to address: 0x{:04X}",
-        //    value, address
-        //));
         match address {
             ..0x2000 => self.internal_ram[(address & 0x07ff) as usize] = value, // RAM reading, including mirroring
             0x2000..0x4000 => {
@@ -120,10 +111,8 @@ impl Memory {
                     self.ppuaddress += 1;
                 }
                 ppu.write_ppu_register(_register, value);
-                self.debug
-                    .emu_log(format!("ppu reg address: 0x{:4X}", self.ppuaddress));
-                self.debug
-                    .emu_log(format!("writing {:?} to: {:?}", value, _register));
+                log::debug!("ppu reg address: 0x{:4X}", self.ppuaddress);
+                log::debug!("writing {:?} to: {:?}", value, _register);
             } // NES PPU registers
             0x4000..0x4014 => {} // TODO: NES APU and I/O registers
             0x4014 => {
@@ -132,7 +121,7 @@ impl Memory {
                         .read_cpu_mem(((value as u16) << 8) + i as u16)
                         .expect("invalid oam read");
                 }
-                self.debug.emu_log(format!("writing oam"));
+                log::debug!("writing oam");
                 ppu.write_oam_dma(self.oamdata);
             }
             0x4015..0x4016 => {}
@@ -154,22 +143,21 @@ impl Memory {
             _ => self.read_cpu_mem(address),
         };
         // Debug printing
-        self.debug.info_log(format!(
+        log::debug!(
             "Currently in prg bank: {:?}, with mode: {:?}",
-            self.cartridge.prg_bank, self.cartridge.prg_bank_mode
-        ));
+            self.cartridge.prg_bank,
+            self.cartridge.prg_bank_mode
+        );
         if value.is_ok() {
             let tmp = value.unwrap();
-            self.debug.info_log(format!(
+            log::debug!(
                 "Read memory byte at address 0x{:04X}: 0x{:02X}",
-                address, tmp
-            ));
+                address,
+                tmp
+            );
             return Ok(tmp);
         } else {
-            self.debug.info_log(format!(
-                "Read memory byte at address 0x{:04X}: FAILED",
-                address
-            ));
+            log::debug!("Read memory byte at address 0x{:04X}: FAILED", address);
         }
         value
     }
@@ -239,15 +227,14 @@ pub struct Cartridge {
     pgr_ram: [u8; 8192], // 8 KiB of program ram
     chr_ram: [u8; 8192],
     init_code: Vec<u8>,
-    debug: DebugMode,
 }
 
 impl Cartridge {
-    fn parse_header(rom_bytes: &[u8], debug: &DebugMode) -> Result<RomHeader, RomError> {
+    fn parse_header(rom_bytes: &[u8]) -> Result<RomHeader, RomError> {
         // Check rom signature
         if rom_bytes[0..4] != *(b"NES\x1a") {
-            debug.info_log(format!("{:?}", b"NES\x1a"));
-            debug.info_log(format!("{:?}", &rom_bytes[0..4]));
+            log::debug!("{:?}", b"NES\x1a");
+            log::debug!("{:?}", &rom_bytes[0..4]);
             return Err(RomError::IncorrectSignature);
         }
 
@@ -268,8 +255,8 @@ impl Cartridge {
         })
     }
 
-    fn new(rom_bytes: &[u8], debug: DebugMode) -> Result<Cartridge, RomError> {
-        let header = Self::parse_header(rom_bytes, &debug)?;
+    fn new(rom_bytes: &[u8]) -> Result<Cartridge, RomError> {
+        let header = Self::parse_header(rom_bytes)?;
         let mut total_length: u32 =
             header.charactor_memory_size as u32 * 8192 + header.program_rom_size as u32 * 16384;
         if header.trainer {
@@ -290,8 +277,7 @@ impl Cartridge {
             cartridge_chr_rom.append(&mut chr_ram.to_vec());
         }
         let cartridge_init_code: Vec<u8> = rom_bytes[(prg_rom_end_index - 256)..].to_vec();
-        println!("Program prg rom {:x}", cartridge_prg_rom.len());
-        debug.info_log(format!("prg ram: {}", header.peristent_memory));
+        log::debug!("prg ram: {}", header.peristent_memory);
         Ok(Cartridge {
             header,
             prg_data: cartridge_prg_rom,
@@ -306,7 +292,6 @@ impl Cartridge {
             pgr_ram: [0; 8192],
             chr_ram: [0; 8192],
             init_code: cartridge_init_code,
-            debug,
         })
         // TODO: implement error handling
     }
@@ -340,10 +325,10 @@ impl Cartridge {
                         self.shift_register = (self.shift_register >> 1) | ((value & 1) << 4);
                         match address {
                             0x8000..0xa000 => {
-                                self.debug.emu_log(format!(
+                                log::debug!(
                                     "editing control register to {:08b}",
                                     self.shift_register
-                                ));
+                                );
                                 match self.shift_register & 3 {
                                     0 => self.header.mirroring = Mirroring::SingleScreenLower,
                                     1 => self.header.mirroring = Mirroring::SingleScreenUpper,
@@ -358,34 +343,23 @@ impl Cartridge {
                                     _ => return Err(MemoryError::ShiftAddressError),
                                 }
                                 if (self.shift_register >> 4) & 1 == 0 {
-                                    self.debug
-                                        .emu_log(format!("changed chr bank mode to fullswitch"));
+                                    log::debug!("changed chr bank mode to fullswitch");
                                     self.chr_bank_mode = CharacterBankMode::Fullswitch
                                 } else {
-                                    self.debug
-                                        .emu_log(format!("changed chr bank mode to halfswitch"));
+                                    log::debug!("changed chr bank mode to halfswitch");
                                     self.chr_bank_mode = CharacterBankMode::Halfswitch
                                 }
                             }
                             0xa000..0xc000 => {
-                                self.debug.emu_log(format!(
-                                    "editing chr0 register to {:08b}",
-                                    self.shift_register
-                                ));
+                                log::debug!("editing chr0 register to {:08b}", self.shift_register);
                                 self.chr_bank_0 = self.shift_register;
                             }
                             0xc000..0xe000 => {
-                                self.debug.emu_log(format!(
-                                    "editing chr1 register to {:08b}",
-                                    self.shift_register
-                                ));
+                                log::debug!("editing chr1 register to {:08b}", self.shift_register);
                                 self.chr_bank_1 = self.shift_register;
                             }
                             0xe000.. => {
-                                self.debug.emu_log(format!(
-                                    "editing prg register to {:08b}",
-                                    self.shift_register
-                                ));
+                                log::debug!("editing prg register to {:08b}", self.shift_register);
                                 self.prg_bank = self.shift_register;
                             }
                             _ => return Err(MemoryError::MapperAddressError(address)),
@@ -475,7 +449,7 @@ fn test_parse_header() {
         mapper_number: 0,
     };
     assert_eq!(
-        Cartridge::parse_header(ROM_NROM_TEST, &DebugMode::No).unwrap(),
+        Cartridge::parse_header(ROM_NROM_TEST).unwrap(),
         expected_header
     );
 }
