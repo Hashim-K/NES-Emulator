@@ -73,7 +73,7 @@ impl TestableCpu for Cpu {
             page_crossing: false,
             total_cycles: 0,
             instructions_executed: 0,
-            debug: DebugMode::No,
+            debug: DebugMode::Emu,
             memory: Memory::new(_rom)?,
         })
     }
